@@ -189,7 +189,7 @@ public class Model extends Observable {
     public static boolean maxTileExists(Board b) {
         for (int i = 0; i < b.size(); i++) {
             for (int j = 0; j < b.size(); j++) {
-                if (b.tile(i, j).value() == MAX_PIECE) {
+                if (b.tile(i, j) != null && b.tile(i, j).value() == MAX_PIECE) {
                     return true;
                 }
             }
