@@ -173,4 +173,18 @@ public class TestAtLeastOneMoveExists {
         assertFalse("No move exists\n" + b,
                 Model.atLeastOneMoveExists(b));
     }
+    @Test
+    /** Tests a board where there is one move exists, at left-down(i=0, j=0/1) coner. */
+    public void testLeftDownOneMoveExists() {
+        int[][] rawVals = new int[][] {
+                {2, 4, 2, 32},
+                {32, 2, 4, 2},
+                {4, 128, 2, 4},
+                {4, 2, 4, 2},
+        };
+
+        b = new Board(rawVals, 0);
+        assertTrue("Left down one move exists\n" + b,
+                Model.atLeastOneMoveExists(b));
+    }
 }

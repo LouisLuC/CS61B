@@ -204,7 +204,21 @@ public class Model extends Observable {
      * 2. There are two adjacent tiles with the same value.
      */
     public static boolean atLeastOneMoveExists(Board b) {
-        // TODO: Fill in this function.
+        // coner case (when i = 0 or j = 0) is a little tricky
+        for (int i = b.size() - 1; i >= 0; i--) {
+            for (int j = b.size() - 1; j >= 0; j--) {
+                Tile thisTile = b.tile(i, j);
+                if (thisTile == null) {
+                    return true;
+                }
+                Tile nextTileUp = i == 0 ? null : b.tile(i - 1, j);
+                Tile nextTileLeft = j == 0 ? null : b.tile(i, j - 1);
+                if ((nextTileUp != null && nextTileUp.value() == thisTile.value()) ||
+                        (nextTileLeft != null && nextTileLeft.value() == thisTile.value())) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
