@@ -137,21 +137,6 @@ public class Model extends Observable {
      * value, then the leading two tiles in the direction of motion merge,
      * and the trailing tile does not.
      */
-
-
-    /* get next Tile by direction. if no tile, return null
-    public Tile getNextTileByDirection(Tile tile, Side side) {
-        // assume tile move towards NORTH, get next Coordinate
-        int[] nextCoor = {side.col(tile.col(), tile.row(), this.board.size()),
-                side.row(tile.col(), tile.row(), this.board.size()) + 1};
-        while (nextCoor[0] > 0 && nextCoor[1] > 0) {
-            if (this.board.tile(nextCoor[0], nextCoor[1]) != null)
-                return this.board.tile(nextCoor[0], nextCoor[1]);
-            nextCoor[0] = side.col(nextCoor[0], nextCoor[1] + 1, this.board.size());
-            nextCoor[1] = side.row(nextCoor[0], nextCoor[1] + 1, this.board.size());
-        }
-        return null;
-    } */
     public boolean tilt(Side side) {
         boolean changed;
         changed = false;
@@ -161,39 +146,49 @@ public class Model extends Observable {
         // changed local variable to true.
 
         // i indicate col, j indicate row. k indicate row of the nextTile on the
-        // same column
+        // same column. frontEmpty, i, j, k is by the Direction side
         for (int i = 0; i < this.board.size(); i++) {
             int frontEmpty = this.board.size() - 1;
             for (int j = this.board.size() - 1; j >= 0; j--) {
                 Tile currTile, nextTile;
-                currTile = this.board.tile(i, j);
+                // currTile = this.board.tile(i, j);
+                currTile = this.board.tile(side.col(i, j, this.board.size()), side.row(i, j, this.board.size()));
                 if (currTile == null) {
                     continue;
                 }
-                if (frontEmpty != currTile.row()) {
+                // if (frontEmpty != currTile.row()) {
+                if (frontEmpty > j) {
                     changed = true;
-                    this.board.move(i, frontEmpty, currTile);
-                    // after movement, currTile.next save the result, and original currTile is useless.
-                    currTile = currTile.next();
+                    //this.board.move(i, frontEmpty, currTile);
+                    this.board.move(side.col(i, frontEmpty, this.board.size()),
+                            side.row(i, frontEmpty, this.board.size()),
+                            currTile);
                 }
                 for (int k = j - 1; k >= 0; k--) {
-                    nextTile = this.board.tile(i, k);
+                    // nextTile = this.board.tile(i, k);
+                    nextTile = this.board.tile(side.col(i, k, this.board.size()), side.row(i, k, this.board.size()));
                     if (nextTile == null)
                         continue;
                     if (nextTile.value() == currTile.value()) {
-                        this.score += currTile.value() * 2;
-                        this.board.move(i, currTile.row(), nextTile);
-                        frontEmpty = currTile.row() - 1;
-                        j = k;
                         changed = true;
+                        this.score += currTile.value() * 2;
+                        // this.board.move(i, currTile.row(), nextTile);
+                        this.board.move(side.col(i, frontEmpty, this.board.size()),
+                                side.row(i, frontEmpty, this.board.size()),
+                                nextTile);
+                        frontEmpty -= 1;
+                        j = k;
                     } else {
-                        if (nextTile.row() != currTile.row() - 1) {
-                            this.board.move(i, currTile.row() - 1, nextTile);
-                            nextTile = nextTile.next();
+                        if (k != j - 1) {
+                            // this.board.move(i, currTile.row() - 1, nextTile);
+                            this.board.move(side.col(i, frontEmpty - 1, this.board.size()),
+                                    side.row(i, frontEmpty - 1, this.board.size()),
+                                    nextTile);
                             changed = true;
                         }
-                        frontEmpty = nextTile.row() - 1;
-                        j = nextTile.row();
+                        frontEmpty -= 1;
+                        // let currTile be nextTile next loop
+                        // j = j - 1;
                     }
                     break;
                 }
