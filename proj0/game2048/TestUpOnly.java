@@ -9,8 +9,6 @@ import static org.junit.Assert.*;
  * @author Omar Khan
  */
 public class TestUpOnly extends TestUtils {
-
-
     @Test
     /** Move tiles up (no merging). */
     public void testUpNoMerge() {

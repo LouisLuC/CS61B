@@ -13,7 +13,8 @@ public class Model extends Observable {
     /**
      * Current contents of the board.
      */
-    private Board board;
+    // private Board board;
+    public Board board;
     /**
      * Current score.
      */
@@ -124,7 +125,7 @@ public class Model extends Observable {
     }
 
     /**
-     * Tilt the board toward SIDE. Return true iff this changes the board.
+     * Tilt the board toward SIDE. Return true if this changes the board.
      * <p>
      * 1. If two Tile objects are adjacent in the direction of motion and have
      * the same value, they are merged into one Tile of twice the original
@@ -136,6 +137,21 @@ public class Model extends Observable {
      * value, then the leading two tiles in the direction of motion merge,
      * and the trailing tile does not.
      */
+
+
+    /* get next Tile by direction. if no tile, return null
+    public Tile getNextTileByDirection(Tile tile, Side side) {
+        // assume tile move towards NORTH, get next Coordinate
+        int[] nextCoor = {side.col(tile.col(), tile.row(), this.board.size()),
+                side.row(tile.col(), tile.row(), this.board.size()) + 1};
+        while (nextCoor[0] > 0 && nextCoor[1] > 0) {
+            if (this.board.tile(nextCoor[0], nextCoor[1]) != null)
+                return this.board.tile(nextCoor[0], nextCoor[1]);
+            nextCoor[0] = side.col(nextCoor[0], nextCoor[1] + 1, this.board.size());
+            nextCoor[1] = side.row(nextCoor[0], nextCoor[1] + 1, this.board.size());
+        }
+        return null;
+    } */
     public boolean tilt(Side side) {
         boolean changed;
         changed = false;
@@ -143,6 +159,47 @@ public class Model extends Observable {
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
+
+        // i indicate col, j indicate row. k indicate row of the nextTile on the
+        // same column
+        for (int i = 0; i < this.board.size(); i++) {
+            int frontEmpty = this.board.size() - 1;
+            for (int j = this.board.size() - 1; j >= 0; j--) {
+                Tile currTile, nextTile;
+                currTile = this.board.tile(i, j);
+                if (currTile == null) {
+                    continue;
+                }
+                if (frontEmpty != currTile.row()) {
+                    changed = true;
+                    this.board.move(i, frontEmpty, currTile);
+                    // after movement, currTile.next save the result, and original currTile is useless.
+                    currTile = currTile.next();
+                }
+                for (int k = j - 1; k >= 0; k--) {
+                    nextTile = this.board.tile(i, k);
+                    if (nextTile == null)
+                        continue;
+                    if (nextTile.value() == currTile.value()) {
+                        this.score += currTile.value() * 2;
+                        this.board.move(i, currTile.row(), nextTile);
+                        frontEmpty = currTile.row() - 1;
+                        j = k;
+                        changed = true;
+                    } else {
+                        if (nextTile.row() != currTile.row() - 1) {
+                            this.board.move(i, currTile.row() - 1, nextTile);
+                            nextTile = nextTile.next();
+                            changed = true;
+                        }
+                        frontEmpty = nextTile.row() - 1;
+                        j = nextTile.row();
+                    }
+                    break;
+                }
+            }
+
+        }
 
         checkGameOver();
         if (changed) {
@@ -211,6 +268,8 @@ public class Model extends Observable {
                 if (thisTile == null) {
                     return true;
                 }
+                // Check edge cases. If i=0 or j=0, no need to check if there is
+                // a move towards its direction
                 Tile nextTileUp = i == 0 ? null : b.tile(i - 1, j);
                 Tile nextTileLeft = j == 0 ? null : b.tile(i, j - 1);
                 if ((nextTileUp != null && nextTileUp.value() == thisTile.value()) ||

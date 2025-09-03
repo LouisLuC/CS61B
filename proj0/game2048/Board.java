@@ -92,6 +92,8 @@ public class Board implements Iterable<Tile> {
             return false;
         }
         Tile tile1 = vtile(col, row, viewPerspective);
+
+        // get rid of the tile on its original place
         values[tile.col()][tile.row()] = null;
 
         if (tile1 == null) {
