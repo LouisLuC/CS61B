@@ -128,7 +128,7 @@ public class Model extends Observable {
      * Tilt the board toward SIDE. Return true if this changes the board.
      * <p>
      * 1. If two Tile objects are adjacent in the direction of motion and have
-     * the same value, they are merged into one Tile of twice the original
+     W
      * value and that new value is added to the score instance variable
      * 2. A tile that is the result of a merge will not merge again on that
      * tilt. So each move, every tile will only ever be part of at most one
@@ -141,22 +141,31 @@ public class Model extends Observable {
         boolean changed;
         changed = false;
 
-        // TODO: Modify this.board (and perhaps this.score) to account
-        // for the tilt to the Side SIDE. If the board changed, set the
-        // changed local variable to true.
-
-        // i indicate col, j indicate row. k indicate row of the nextTile on the
-        // same column. frontEmpty, i, j, k is by the Direction side
+        // i, j indicate col and row of currently select Tile currTile.
+        // k indicate row of the nextTile on the same column.
+        // frontEmpty indicate the row currTile would move to.
+        // frontEmpty, i, j, k is depended on the Direction, represented by side
+        // If side is Side.NORTH, i, j, k, frontEmpty would be same with the actual coordinate
+        // Otherwise, i, j, k, frontEmpty should be translated by side.col() and side.row()
+        //
+        // Key is to abstract these variable(i, j, k, frontEmpty) from the actual coordinate,
+        // when build the logic of tilting, assume that the side is Side.North, and operation from player is
+        // always up.
         for (int i = 0; i < this.board.size(); i++) {
+            // initiate frontEmpty, which should be at the top
             int frontEmpty = this.board.size() - 1;
             for (int j = this.board.size() - 1; j >= 0; j--) {
                 Tile currTile, nextTile;
+
+                // Find location of non-null tile, select it by assign it to currTile
                 // currTile = this.board.tile(i, j);
                 currTile = this.board.tile(side.col(i, j, this.board.size()), side.row(i, j, this.board.size()));
                 if (currTile == null) {
                     continue;
                 }
-                // if (frontEmpty != currTile.row()) {
+
+                // if frontEmpty > the row of currTile
+                // move it to the row of frontEmpty
                 if (frontEmpty > j) {
                     changed = true;
                     //this.board.move(i, frontEmpty, currTile);
@@ -164,11 +173,15 @@ public class Model extends Observable {
                             side.row(i, frontEmpty, this.board.size()),
                             currTile);
                 }
+
+                // Try to find another tile along the direction
                 for (int k = j - 1; k >= 0; k--) {
                     // nextTile = this.board.tile(i, k);
                     nextTile = this.board.tile(side.col(i, k, this.board.size()), side.row(i, k, this.board.size()));
                     if (nextTile == null)
                         continue;
+
+                    // Check if tow tile can be merged
                     if (nextTile.value() == currTile.value()) {
                         changed = true;
                         this.score += currTile.value() * 2;
@@ -176,7 +189,11 @@ public class Model extends Observable {
                         this.board.move(side.col(i, frontEmpty, this.board.size()),
                                 side.row(i, frontEmpty, this.board.size()),
                                 nextTile);
+                        // update the row next currTile should be moved to
+                        // which should be the next row of currTile
                         frontEmpty -= 1;
+                        // update the row next loop would look up to
+                        // the row lower than k and k itself is empty for sure
                         j = k;
                     } else {
                         if (k != j - 1) {
@@ -188,12 +205,11 @@ public class Model extends Observable {
                         }
                         frontEmpty -= 1;
                         // let currTile be nextTile next loop
-                        // j = j - 1;
+                        // j = j - 1; // j will be updated by loop itself
                     }
                     break;
                 }
             }
-
         }
 
         checkGameOver();
