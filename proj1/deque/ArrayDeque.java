@@ -116,8 +116,8 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (this == obj)
             return true;
 
-        if (obj instanceof ArrayDeque otherAd) {
-
+        if (obj instanceof ArrayDeque) {
+            ArrayDeque otherAd = (ArrayDeque) obj;
             if (this.size() != otherAd.size())
                 return false;
 
