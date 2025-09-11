@@ -132,12 +132,18 @@ public class LinkedListDeque<T> implements Deque<T> ,Iterable<T> {
     }
 
     @Override
+    /* o is considered equal if it is a Deque and if it contains the same contents
+     * (as goverened by the generic T’s equals method) in the same order. */
     public boolean equals(Object obj) {
         if (this == obj)
             return true;
+
         if (obj instanceof LinkedListDeque otherLLD) {
+
             if(this.size() != otherLLD.size())
                 return false;
+
+            // compare each the item of tow lld
             Node<T> thisCurr = this.sentinel;
             Node otherCurr = otherLLD.sentinel;
             for (int i = 0; i < this.size(); i++) {
@@ -146,6 +152,9 @@ public class LinkedListDeque<T> implements Deque<T> ,Iterable<T> {
                 thisCurr = thisCurr.next;
                 otherCurr = otherCurr.next;
             }
+            // Here is a problem. there is no way to
+            // figure out whether generic type T is same,
+            // and if the size is 0, the method would return true directly
             return true;
         }
         return false;
