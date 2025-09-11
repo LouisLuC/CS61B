@@ -137,6 +137,46 @@ public class LinkedListDequeTest {
 
     @Test
     /* Test get method ensure we get the right item */
+    public void getRecursiveOrderTest() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld.addLast(i);
+        }
+        for (int i = 99; i >= 0; i--) {
+            assertEquals(i, (int) lld.getRecursive(i));
+        }
+    }
+
+    @Test
+    /* If the index is out of bounds, it should return null */
+    public void getNullTest() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        LinkedListDeque<Integer> lldEmpty = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld.addLast(i);
+        }
+        for (int i = 100; i < 200; i++) {
+            assertNull(lld.get(i));
+            assertNull(lldEmpty.get(i));
+        }
+    }
+
+    @Test
+    /* If the index is out of bounds, it should return null */
+    public void getRecursiveNullTest() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        LinkedListDeque<Integer> lldEmpty = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld.addLast(i);
+        }
+        for (int i = 100; i < 200; i++) {
+            assertNull(lld.getRecursive(i));
+            assertNull(lldEmpty.getRecursive(i));
+        }
+    }
+
+    @Test
+    /* Test get method ensure we get the right item */
     public void equalsTest() {
         LinkedListDeque<Integer> lld = new LinkedListDeque<>();
         LinkedListDeque<Integer> lldEqual = new LinkedListDeque<>();
@@ -175,5 +215,20 @@ public class LinkedListDequeTest {
         // Is there any way to figure out the empty lld with different generic type?
         // Test empty llds with different Type
         // assertFalse(lldEmpty.equals(lldEmptyAndNotSameType) || lldEmptyAndNotSameType.equals(lldEmpty));
+    }
+
+    @Test
+    /* Test for each loop and if it is in right order */
+    public void testIterator() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        int[] actual = new int[1000];
+
+        for (int i = 999; i >= 0; i--) {
+            lld.addLast(i);
+            actual[(1000 - i) - 1] = i;
+        }
+        for (int i : lld) {
+            assertEquals(actual[(1000 - i) - 1], i);
+        }
     }
 }
