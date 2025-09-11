@@ -2,17 +2,34 @@ package deque;
 
 import java.util.Iterator;
 
-public class LinkedListDeque<T> implements Iterable<T> {
+public class LinkedListDeque<T> implements Deque<T> ,Iterable<T> {
     private Node<T> sentinel;
     private int size;
+
+    /* Double Linked Node */
+    private class Node<T> {
+        T item;
+        Node<T> prev;
+        Node<T> next;
+
+        public Node(T item, Node<T> prev, Node<T> next) {
+            this.item = item;
+            this.prev = prev;
+            this.next = next;
+        }
+    }
+
 
     public LinkedListDeque() {
         // circular sentinel
         this.sentinel = new Node<T>(null, null, null);
+        // sentinel.next links the first item, sentinel.prev links the
+        // last item
         this.sentinel.next = this.sentinel;
         this.sentinel.prev = this.sentinel;
     }
 
+    @Override
     public void addFirst(T item) {
         this.size++;
         Node<T> newNode = new Node<>(item, this.sentinel, this.sentinel.next);
@@ -20,6 +37,7 @@ public class LinkedListDeque<T> implements Iterable<T> {
         this.sentinel.next = newNode;
     }
 
+    @Override
     public void addLast(T item) {
         this.size++;
         Node<T> newNode = new Node<>(item, this.sentinel.prev, this.sentinel);
@@ -28,6 +46,7 @@ public class LinkedListDeque<T> implements Iterable<T> {
     }
 
 
+    @Override
     public T removeLast() {
         if (this.isEmpty())
             return null;
@@ -38,6 +57,7 @@ public class LinkedListDeque<T> implements Iterable<T> {
         return ret;
     }
 
+    @Override
     public T removeFirst() {
         if (this.isEmpty())
             return null;
@@ -48,16 +68,19 @@ public class LinkedListDeque<T> implements Iterable<T> {
         return ret;
     }
 
+    @Override
     public int size() {
         return size;
     }
 
+    @Override
     public boolean isEmpty() {
         if (this.size() == 0)
             return true;
         return false;
     }
 
+    @Override
     /* Get Item at position of @index
      * Iterate through the deque */
     public T get(int index) {
@@ -70,6 +93,7 @@ public class LinkedListDeque<T> implements Iterable<T> {
         return curr.item;
     }
 
+    @Override
     public void printDeque() {
         System.out.println(this);
     }
@@ -84,6 +108,7 @@ public class LinkedListDeque<T> implements Iterable<T> {
         return str.toString();
     }
 
+    @Override
     public Iterator<T> iterator() {
         return new Iterator<T>() {
             Node<T> curr = sentinel.next;
@@ -127,15 +152,4 @@ public class LinkedListDeque<T> implements Iterable<T> {
     }
 
 
-    private class Node<T> {
-        T item;
-        Node<T> prev;
-        Node<T> next;
-
-        public Node(T item, Node<T> prev, Node<T> next) {
-            this.item = item;
-            this.prev = prev;
-            this.next = next;
-        }
-    }
 }
