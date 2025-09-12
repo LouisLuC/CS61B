@@ -43,11 +43,6 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return this.size() == 0;
-    }
-
-    @Override
     public int size() {
         return this.size;
     }
@@ -69,7 +64,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeLast() {
-        if (this.size() == 0)
+        if (this.isEmpty())
             return null;
         T ret = this.items[this.front + this.size() - 1];
         this.size--;
@@ -81,7 +76,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeFirst() {
-        if (this.size() == 0)
+        if (this.isEmpty())
             return null;
         T ret = this.items[this.front];
         this.front++;

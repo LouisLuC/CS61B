@@ -75,11 +75,6 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return this.size() == 0;
-    }
-
-    @Override
     /* Get Item at position of @index
      * Iterate through the deque */
     public T get(int index) {
