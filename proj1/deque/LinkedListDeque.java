@@ -106,11 +106,10 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public void printDeque() {
-        System.out.println(this);
+        System.out.println(this.string());
     }
 
-    @Override
-    public String toString() {
+    private String string() {
         StringBuilder str = new StringBuilder();
         for (T item : this) {
             str.append(item);

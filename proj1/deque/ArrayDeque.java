@@ -20,10 +20,6 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         this.size = 0;
     }
 
-    public int getArrayLength() {
-        return this.items.length;
-    }
-
     @Override
     public void addFirst(T item) {
         if (this.front == 0) {
@@ -48,8 +44,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         return this.size;
     }
 
-    @Override
-    public String toString() {
+    private String string() {
         StringBuilder stb = new StringBuilder();
         for (int i = this.front; i < this.front + this.size(); i++) {
             stb.append(this.items[i]);
@@ -60,7 +55,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public void printDeque() {
-        System.out.println(this);
+        System.out.println(this.string());
     }
 
     @Override

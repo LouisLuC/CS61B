@@ -3,6 +3,7 @@ package deque;
 import org.junit.Test;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 
 import static org.junit.Assert.*;
 
@@ -11,6 +12,17 @@ import static org.junit.Assert.*;
  * Performs some basic array list tests.
  */
 public class ArrayDequeTest {
+    public static int getArrayLength(ArrayDeque ad) {
+        try {
+            Field itemsField = ad.getClass().getDeclaredField("items");
+            itemsField.setAccessible(true);
+            Object[] items = (Object[]) itemsField.get(ad);
+            return items.length;
+        } catch (Exception e) {
+            System.out.println(e);
+            return -1;
+        }
+    }
 
     @Test
     /** Adds a few things to the list, checking isEmpty() and size() are correct,
@@ -67,9 +79,9 @@ public class ArrayDequeTest {
         for (int i = 0; i < 20; i++) {
             ad.addFirst(i);
         }
-        if (ad.getArrayLength() > 16)
+        if (getArrayLength(ad) > 16)
             assertTrue("usage factor should always be at least 25%",
-                    ad.getArrayLength() / 4 <= ad.size());
+                    getArrayLength(ad) / 4 <= ad.size());
         // should  be 20
         assertEquals("ad should contain 20 item",20, ad.size());
 
@@ -78,7 +90,7 @@ public class ArrayDequeTest {
         }
 
         assertTrue("usage factor should be lower than 16 when it's empty",
-                ad.getArrayLength()<=16);
+                getArrayLength(ad)<=16);
         // should be empty
         assertTrue("ad1 should be empty after removal", ad.isEmpty());
     }
@@ -227,30 +239,30 @@ public class ArrayDequeTest {
         for (int i = 0; i < 1000; i++) {
             ad.addLast(i);
             assertEquals((i + 1), ad.size());
-            if (ad.getArrayLength() > 16)
+            if (getArrayLength(ad) > 16)
                 assertTrue("usage factor should always be at least 25%",
-                        ad.getArrayLength() / 4 <= ad.size());
+                        getArrayLength(ad) / 4 <= ad.size());
         }
         for (int i = 0; i < 1000; i++) {
             ad.addFirst(i);
             assertEquals((1000 + i + 1), ad.size());
-            if (ad.getArrayLength() > 16)
+            if (getArrayLength(ad) > 16)
                 assertTrue("usage factor should always be at least 25%",
-                        ad.getArrayLength() / 4 <= ad.size());
+                        getArrayLength(ad) / 4 <= ad.size());
         }
         for (int i = 0; i < 1000; i++) {
             ad.removeFirst();
             assertEquals(2000 - (i + 1), ad.size());
-            if (ad.getArrayLength() > 16)
+            if (getArrayLength(ad) > 16)
                 assertTrue("usage factor should always be at least 25%",
-                        ad.getArrayLength() / 4 <= ad.size());
+                        getArrayLength(ad) / 4 <= ad.size());
         }
         for (int i = 0; i < 1000; i++) {
             ad.removeFirst();
             assertEquals(1000 - (i + 1), ad.size());
-            if (ad.getArrayLength() > 16)
+            if (getArrayLength(ad) > 16)
                 assertTrue("usage factor should always be at least 25%",
-                        ad.getArrayLength() / 4 <= ad.size());
+                        getArrayLength(ad) / 4 <= ad.size());
         }
 
         assertEquals("size should be 0 now", 0, ad.size());
