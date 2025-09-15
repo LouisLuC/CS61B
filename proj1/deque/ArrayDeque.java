@@ -26,8 +26,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public void addFirst(T item) {
-        if (this.front == 0)
+        if (this.front == 0) {
             resize(this.items.length * 2);
+        }
         this.items[this.front - 1] = item;
         this.size++;
         this.front--;
@@ -64,8 +65,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeLast() {
-        if (this.isEmpty())
+        if (this.isEmpty()) {
             return null;
+        }
         T ret = this.items[this.front + this.size() - 1];
         this.size--;
         if (this.items.length > 16 && this.size() <= (this.items.length / 4)) {
@@ -76,8 +78,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeFirst() {
-        if (this.isEmpty())
+        if (this.isEmpty()) {
             return null;
+        }
         T ret = this.items[this.front];
         this.front++;
         this.size--;
@@ -89,8 +92,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T get(int index) {
-        if (index + 1 > this.size())
+        if (index + 1 > this.size()) {
             return null;
+        }
         return this.items[this.front + index];
     }
 
@@ -106,20 +110,22 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     /* o is considered equal if it is a Deque and if it contains the same contents
-     * (as goverened by the generic T’s equals method) in the same order. */
-    public boolean equals(Object obj) {
-        if (this == obj)
+     * (as goverened by the generic T’s equals method) in the same order. */ public boolean equals(Object obj) {
+        if (this == obj) {
             return true;
+        }
 
         if (obj instanceof ArrayDeque) {
             ArrayDeque otherAd = (ArrayDeque) obj;
-            if (this.size() != otherAd.size())
+            if (this.size() != otherAd.size()) {
                 return false;
+            }
 
             // compare each the item of tow lld
             for (int i = 0; i < this.size(); i++) {
-                if (!this.get(i).equals(otherAd.get(i)))
+                if (!this.get(i).equals(otherAd.get(i))) {
                     return false;
+                }
             }
             // Here is a problem. there is no way to
             // figure out whether generic type T is same,
