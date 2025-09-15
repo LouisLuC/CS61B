@@ -49,8 +49,9 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeLast() {
-        if (this.isEmpty())
+        if (this.isEmpty()) {
             return null;
+        }
         this.size--;
         T ret = this.sentinel.prev.item;
         this.sentinel.prev.prev.next = this.sentinel;
@@ -60,8 +61,10 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeFirst() {
-        if (this.isEmpty())
+        if (this.isEmpty()) {
+
             return null;
+        }
         this.size--;
         T ret = this.sentinel.next.item;
         this.sentinel.next.next.prev = this.sentinel;
@@ -78,8 +81,9 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     /* Get Item at position of @index
      * Iterate through the deque */
     public T get(int index) {
-        if (index + 1 > this.size())
+        if (index + 1 > this.size()) {
             return null;
+        }
         Node<T> curr = this.sentinel.next;
         for (int i = 0; i < index; i++) {
             curr = curr.next;
@@ -88,11 +92,12 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     private T getRecursiveByNode(Node<T> node, int index) {
-        if (index == 0)
+        if (index == 0) {
             return node.item;
-        else if (node == this.sentinel)
+        } else if (node == this.sentinel) {
             return null;
-        return getRecursiveByNode(node.next, index-1);
+        }
+        return getRecursiveByNode(node.next, index - 1);
     }
 
     public T getRecursive(int index) {
@@ -139,20 +144,23 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     /* o is considered equal if it is a Deque and if it contains the same contents
      * (as goverened by the generic T’s equals method) in the same order. */
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
+        }
 
         if (obj instanceof LinkedListDeque) {
             LinkedListDeque otherLLD = (LinkedListDeque) obj;
-            if (this.size() != otherLLD.size())
+            if (this.size() != otherLLD.size()) {
                 return false;
+            }
 
             // compare each the item of tow lld
             Node<T> thisCurr = this.sentinel;
             Node otherCurr = otherLLD.sentinel;
             for (int i = 0; i < this.size(); i++) {
-                if (!(thisCurr.next.item.equals(otherCurr.next.item)))
+                if (!(thisCurr.next.item.equals(otherCurr.next.item))) {
                     return false;
+                }
                 thisCurr = thisCurr.next;
                 otherCurr = otherCurr.next;
             }
