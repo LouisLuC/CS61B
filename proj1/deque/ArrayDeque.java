@@ -138,12 +138,12 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
             @Override
             public boolean hasNext() {
-                return front + pos < size;
+                return pos < size;
             }
 
             @Override
             public T next() {
-                T ret = items[pos];
+                T ret = ArrayDeque.this.get(pos);
                 pos++;
                 return ret;
             }

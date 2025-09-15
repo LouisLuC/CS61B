@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.util.Iterator;
 
 import static org.junit.Assert.*;
 
@@ -241,6 +242,17 @@ public class ArrayDequeTest {
         }
         for (int i : ad) {
             assertEquals(actual[(1000 - i) - 1], i);
+        }
+
+        ArrayDeque<Integer> adn = new ArrayDeque<>();
+        for (int i = 0; i < 1000; i++) {
+            adn.addLast(i);
+        }
+        Iterator<Integer> itr = adn.iterator();
+        for (int i = 0; i < 1000; i++) {
+            assertTrue("hasNext() should return true", itr.hasNext());
+            int ret = itr.next();
+            assertEquals("the return value of next() " + ret + "should be " + i, i, ret);
         }
     }
 
