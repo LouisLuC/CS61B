@@ -83,14 +83,14 @@ public class ArrayDequeTest {
             assertTrue("usage factor should always be at least 25%",
                     getArrayLength(ad) / 4 <= ad.size());
         // should  be 20
-        assertEquals("ad should contain 20 item",20, ad.size());
+        assertEquals("ad should contain 20 item", 20, ad.size());
 
         for (int i = 0; i < 20; i++) {
             ad.removeLast();
         }
 
         assertTrue("usage factor should be lower than 16 when it's empty",
-                getArrayLength(ad)<=16);
+                getArrayLength(ad) <= 16);
         // should be empty
         assertTrue("ad1 should be empty after removal", ad.isEmpty());
     }
@@ -140,8 +140,10 @@ public class ArrayDequeTest {
 
         boolean passed1 = false;
         boolean passed2 = false;
-        assertEquals("Should return null when removeFirst is called on an empty Deque,", null, ad1.removeFirst());
-        assertEquals("Should return null when removeLast is called on an empty Deque,", null, ad1.removeLast());
+        assertEquals("Should return null when removeFirst is called on an empty Deque,",
+                null, ad1.removeFirst());
+        assertEquals("Should return null when removeLast is called on an empty Deque,",
+                null, ad1.removeLast());
 
     }
 
@@ -187,10 +189,14 @@ public class ArrayDequeTest {
         ArrayDeque<Integer> adEmpty = new ArrayDeque<>();
         ArrayDeque<Integer> adSameEmpty = new ArrayDeque<>();
         ArrayDeque<String> adEmptyAndNotSameType = new ArrayDeque<>();
+        LinkedListDeque<Integer> lldWithEqual = new LinkedListDeque<>();
+        LinkedListDeque<Integer> lldNotEqual = new LinkedListDeque<>();
 
         for (int i = 0; i < 5; i++) {
             ad.addLast(i);
             adEqual.addLast(i);
+            lldWithEqual.addLast(i);
+            lldNotEqual.addLast(i - 1);
             adNotEqualSameSize.addLast(i - 1);
             adNotEqualNotSameSize.addLast(i);
             adNotSameType.addLast(Integer.valueOf(i).toString());
@@ -212,10 +218,15 @@ public class ArrayDequeTest {
         assertFalse("empty ad with SAME TPYE should be equal",
                 ad.equals(adEmpty) || adEmpty.equals(ad));
         // Test tow empty ad
-        assertTrue("Tow empty ad should be equal", adEmpty.equals(adSameEmpty) && adSameEmpty.equals(adEmpty));
+        assertTrue("Tow empty ad should be equal",
+                adEmpty.equals(adSameEmpty) && adSameEmpty.equals(adEmpty));
         // Is there any way to figure out the empty ad with different generic type?
         // Test empty ads with different Type
         // assertFalse(adEmpty.equals(adEmptyAndNotSameType) || adEmptyAndNotSameType.equals(adEmpty));
+        assertTrue("LLD and AD with same items should be equal.",
+                lldWithEqual.equals(ad) && ad.equals(lldWithEqual));
+        assertFalse("LLD and AD with same items should be equal.",
+                lldNotEqual.equals(ad) || ad.equals(lldNotEqual));
     }
 
     @Test

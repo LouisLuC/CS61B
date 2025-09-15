@@ -147,21 +147,20 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
             return true;
         }
 
-        if (obj instanceof LinkedListDeque) {
-            LinkedListDeque otherLLD = (LinkedListDeque) obj;
-            if (this.size() != otherLLD.size()) {
+        if (obj instanceof Deque) {
+            Deque otherDeque = (Deque) obj;
+            if (this.size() != otherDeque.size()) {
                 return false;
             }
 
             // compare each the item of tow lld
+            // does not use get(i) of LLD because it is slow
             Node<T> thisCurr = this.sentinel;
-            Node otherCurr = otherLLD.sentinel;
             for (int i = 0; i < this.size(); i++) {
-                if (!(thisCurr.next.item.equals(otherCurr.next.item))) {
+                if (!(thisCurr.next.item.equals(otherDeque.get(i)))) {
                     return false;
                 }
                 thisCurr = thisCurr.next;
-                otherCurr = otherCurr.next;
             }
             // Here is a problem. there is no way to
             // figure out whether generic type T is same,

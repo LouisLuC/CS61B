@@ -105,20 +105,21 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     /* o is considered equal if it is a Deque and if it contains the same contents
-     * (as goverened by the generic T’s equals method) in the same order. */ public boolean equals(Object obj) {
+     * (as goverened by the generic T’s equals method) in the same order. */
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
 
-        if (obj instanceof ArrayDeque) {
-            ArrayDeque otherAd = (ArrayDeque) obj;
-            if (this.size() != otherAd.size()) {
+        if (obj instanceof Deque) {
+            Deque otherDeque = (Deque) obj;
+            if (this.size() != otherDeque.size()) {
                 return false;
             }
 
             // compare each the item of tow lld
             for (int i = 0; i < this.size(); i++) {
-                if (!this.get(i).equals(otherAd.get(i))) {
+                if (!this.get(i).equals(otherDeque.get(i))) {
                     return false;
                 }
             }
