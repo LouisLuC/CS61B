@@ -1,6 +1,5 @@
 package gh2;
 
-import edu.princeton.cs.algs4.Genome;
 import edu.princeton.cs.algs4.StdAudio;
 import edu.princeton.cs.algs4.StdDraw;
 
@@ -8,27 +7,27 @@ import edu.princeton.cs.algs4.StdDraw;
  * A client that uses the synthesizer package to replicate a plucked guitar string sound
  */
 public class GuitarHero {
-    private static final String keyboard = "q2we4r5ty7u8i9op-[=zxdcfvgbnjmk,.;/' ";
-    private static final GuitarString[] notes = new GuitarString[GuitarHero.keyboard.length()];
+    private static final String KEYBOARD = "q2we4r5ty7u8i9op-[=zxdcfvgbnjmk,.;/' ";
+    private static final GuitarString[] NOTES = new GuitarString[GuitarHero.KEYBOARD.length()];
 
     /* create 37 guitar strings */
     private static void guitarStringInit() {
-        for (int i = 0; i < GuitarHero.notes.length; i++) {
-            notes[i] = new GuitarString(440.0 * Math.pow(2, (i - 24) / 12.0));
+        for (int i = 0; i < GuitarHero.NOTES.length; i++) {
+            NOTES[i] = new GuitarString(440.0 * Math.pow(2, (i - 24) / 12.0));
         }
     }
 
     private static double compose() {
         double sample = 0.0;
-        for (int i = 0; i < GuitarHero.notes.length; i++) {
-            sample+=GuitarHero.notes[i].sample();
+        for (int i = 0; i < GuitarHero.NOTES.length; i++) {
+            sample += GuitarHero.NOTES[i].sample();
         }
         return sample;
-    };
+    }
 
     private static void notesTic() {
-        for (int i = 0; i < GuitarHero.notes.length; i++) {
-            GuitarHero.notes[i].tic();
+        for (int i = 0; i < GuitarHero.NOTES.length; i++) {
+            GuitarHero.NOTES[i].tic();
         }
     }
 
@@ -42,19 +41,13 @@ public class GuitarHero {
             /* check if the user has typed a key; if so, process it */
             if (StdDraw.hasNextKeyTyped()) {
                 char key = StdDraw.nextKeyTyped();
-                int keyIndex = keyboard.indexOf(key);
+                int keyIndex = KEYBOARD.indexOf(key);
                 System.out.println("The key user pressed is " + key + ", the index is " + keyIndex);
-                if (keyIndex == -1)
+                if (keyIndex == -1) {
                     continue;
-                GuitarString note = notes[keyIndex];
-                note.pluck();
-                /*
-                if (key == 'a') {
-                    stringA.pluck();
-                } else if (key == 'c') {
-                    stringC.pluck();
                 }
-                 */
+                GuitarString note = NOTES[keyIndex];
+                note.pluck();
             }
 
             /* compute the superposition of samples */
@@ -65,8 +58,6 @@ public class GuitarHero {
             StdAudio.play(sample);
 
             /* advance the simulation of each guitar string by one step */
-            // stringA.tic();
-            // stringC.tic();
             notesTic();
         }
     }
