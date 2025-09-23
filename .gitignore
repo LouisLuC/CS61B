@@ -368,6 +368,31 @@ tramp
 # Project 1B things
 # words
 
+<<<<<<< HEAD
 # Lectures
 lecture/
 
+=======
+# Capers Lab Things (SP21)
+!Makefile
+!lab6/testing/*
+!lab6/testing/our/*
+
+# Project 3 Image/Audio/Video Files
+!proj3/**/*.png
+!proj3/**/*.jpeg
+!proj3/**/*.jpg
+!proj3/**/*.mp3
+!proj3/**/*.mp4
+!proj3/**/*.gif
+!proj3/**/*.wav
+
+# Project Repo Image/Audio/Video Files
+!byow/**/*.png
+!byow/**/*.jpeg
+!byow/**/*.jpg
+!byow/**/*.mp3
+!byow/**/*.mp4
+!byow/**/*.gif
+!byow/**/*.wav
+>>>>>>> 160747451c147c59d8e3cbf70a7afee2b73bebdb
