@@ -32,6 +32,21 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
     @Override
     public Iterator<K> iterator() {
+        /*
+        return new Iterator<K>() {
+            BSTNode<K, V> currNode;
+
+            @Override
+            public boolean hasNext() {
+                return currNode.left != null || currNode.right != null;
+            }
+
+            @Override
+            public K next() {
+                return null;
+            }
+        };
+         */
         throw new UnsupportedOperationException();
     }
 
@@ -122,12 +137,102 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
     @Override
     public Set<K> keySet() {
-        throw new UnsupportedOperationException();
+        Set<K> set = Set.of();
+        getKeys(root, set);
+        return set;
+    }
+
+    private void getKeys(BSTNode<K, V> node, Set<K> set) {
+        if (node != null) {
+            getKeys(node.left, set);
+            set.add(node.key);
+            getKeys(node.right, set);
+        }
     }
 
     @Override
     public V remove(K key) {
-        throw new UnsupportedOperationException();
+        int cmp = key.compareTo(root.key);
+        if (cmp == 0) {
+            V ret = root.value;
+            if (root.right != null) {
+                setValueOfSmallestRight(root);
+            } else if (root.left != null) {
+                setValueOfLargestLeft(root);
+            } else {
+                root = null;
+            }
+            return ret;
+        }
+        return remove(root, key, cmp > 0);
+    }
+
+    private void setValueOfSmallestRight(BSTNode<K, V> node) {
+        BSTNode<K, V> currNode = node.right;
+        BSTNode<K, V> parent = node;
+        while (currNode.left != null) {
+            parent.size--;
+            parent = currNode;
+            currNode = currNode.left;
+        }
+        parent.size--;
+        node.value = currNode.value;
+        node.key = currNode.key;
+        if (parent == node) {
+            parent.right = currNode.right;
+        } else {
+            parent.left = currNode.right;
+        }
+    }
+
+    private void setValueOfLargestLeft(BSTNode<K, V> node) {
+        BSTNode<K, V> currNode = node.left;
+        BSTNode<K, V> parent = node;
+        while (currNode.right != null) {
+            parent.size--;
+            parent = currNode;
+            currNode = currNode.right;
+        }
+        parent.size--;
+        node.value = currNode.value;
+        node.key = currNode.key;
+        if (parent == node) {
+            parent.left = currNode.left;
+        } else {
+            parent.right = currNode.left;
+        }
+    }
+
+    /* 递归删除. 在方法里维护被删除节点@nextNode和其父节点@node之间的关系
+    *  param
+    *  @node 被删除节点可能在其子树的节点
+    *  @keyIsLarger 上轮递归中,@key和@node之间的比较结果
+    * @key 要删除的key*/
+    private V remove(BSTNode<K, V> node, K key, boolean keyIsLarger) {
+        V ret;
+        BSTNode<K, V> nextNode = keyIsLarger ? node.right : node.left;
+        if (nextNode == null) {
+            return null;
+        }
+        int cmp = key.compareTo(nextNode.key);
+        if (cmp == 0) {
+            ret = nextNode.value;
+            if (nextNode.left == null && nextNode.right == null) {
+                // no child
+                if (keyIsLarger) node.right = null;
+                else node.left = null;
+            } else if (nextNode.right != null) {
+                setValueOfSmallestRight(nextNode);
+            } else {
+                setValueOfLargestLeft(nextNode);
+            }
+        } else {
+            ret = remove(nextNode, key, cmp > 0);
+        }
+        if (ret != null) {
+            node.size--;
+        }
+        return ret;
     }
 
     @Override
