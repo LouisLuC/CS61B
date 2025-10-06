@@ -108,7 +108,8 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         if (node == null) {
             return 0;
         }
-        return size(node.left) + size(node.right) + 1;
+        // return size(node.left) + size(node.right) + 1; // bad recursive
+        return node.size;
     }
 
     @Override
@@ -128,10 +129,10 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         } else {
             node.value = value;
         }
-        // node.size = 1 + size(node.left) + size(node.right);
-        int rightSize = node.right != null ? node.right.size : 0;
-        int leftSize = node.left != null ? node.left.size : 0;
-        node.size = 1 + leftSize + rightSize;
+        // int rightSize = node.right != null ? node.right.size : 0;
+        // int leftSize = node.left != null ? node.left.size : 0;
+        // node.size = 1 + leftSize + rightSize;
+        node.size = 1 + size(node.left) + size(node.right);
         return node;
     }
 
@@ -142,6 +143,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         return set;
     }
 
+
     private void getKeys(BSTNode<K, V> node, Set<K> set) {
         if (node != null) {
             getKeys(node.left, set);
@@ -150,6 +152,59 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         }
     }
 
+    @Override
+    public V remove(K key) {
+        V ret = get(key);
+        if (ret != null) {
+            root = remove(root, key);
+        }
+        return ret;
+    }
+
+    private BSTNode<K, V> remove(BSTNode<K, V> node, K key) {
+        if (node == null) {
+            return null;
+        }
+        int cmp = key.compareTo(node.key);
+        if (cmp > 0) {
+            node.right = remove(node.right, key);
+            node.size = 1 + size(node.right) + size(node.left);
+        } else if (cmp < 0) {
+            node.left = remove(node.left, key);
+            node.size = 1 + size(node.right) + size(node.left);
+        } else {
+            if (node.left == null) {
+                return node.right;
+            }
+            if (node.right == null) {
+                return node.left;
+            }
+            BSTNode<K, V> minInRight = findMin(node.right);
+            node.key = minInRight.key;
+            node.value = minInRight.value;
+
+            removeMin(node.right);
+        }
+        return node;
+    }
+
+    private BSTNode<K, V> removeMin(BSTNode<K, V> node) {
+        if (node.left == null) {
+            return node.right;
+        }
+        node.left = removeMin(node.left);
+        node.size = 1 + size(node.left) + size(node.right);
+        return node;
+    }
+
+    private BSTNode<K, V> findMin(BSTNode<K, V> node) {
+        if (node.left == null) {
+            return node;
+        }
+        return findMin(node.left);
+    }
+
+    /* 非典型递归
     @Override
     public V remove(K key) {
         int cmp = key.compareTo(root.key);
@@ -207,7 +262,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
     *  param
     *  @node 被删除节点可能在其子树的节点
     *  @keyIsLarger 上轮递归中,@key和@node之间的比较结果
-    * @key 要删除的key*/
+    * @key 要删除的key
     private V remove(BSTNode<K, V> node, K key, boolean keyIsLarger) {
         V ret;
         BSTNode<K, V> nextNode = keyIsLarger ? node.right : node.left;
@@ -234,6 +289,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         }
         return ret;
     }
+    */
 
     @Override
     public V remove(K key, V value) {
