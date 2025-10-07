@@ -1,58 +1,58 @@
 package bstmap;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Set;
-import java.util.Spliterator;
 
 public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
     private static class BSTNode<K extends Comparable<K>, V> {
         K key;
         V value;
-        // BSTMap<K, V> parent;
         BSTNode<K, V> left;
         BSTNode<K, V> right;
         int size;
 
-        BSTNode(K k, V v, BSTNode<K, V> l, BSTNode<K, V> r) {
+        BSTNode(K k, V v) {
             key = k;
             value = v;
-            left = l;
-            right = r;
             size = 1;
-            if (l != null) {
-                size += l.size;
-            }
-            if (r != null) {
-                size += r.size;
-            }
         }
     }
 
     private BSTNode<K, V> root;
 
-    @Override
-    public Iterator<K> iterator() {
-        /*
-        return new Iterator<K>() {
-            BSTNode<K, V> currNode;
+    private class BSTIterator implements Iterator<K> {
+        // Cast problem
 
-            @Override
-            public boolean hasNext() {
-                return currNode.left != null || currNode.right != null;
-            }
+        LinkedList<BSTNode<K,V>> list;
 
-            @Override
-            public K next() {
-                return null;
+        BSTIterator() {
+            list = new LinkedList<>();
+            list.addLast(root);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !list.isEmpty();
+        }
+
+        @Override
+        public K next() {
+            BSTNode<K,V> node = list.removeFirst();
+            if (node.left!=null) {
+                list.addLast(node.left);
             }
-        };
-         */
-        throw new UnsupportedOperationException();
+            if (node.left!=null) {
+                list.addLast(node.right);
+            }
+            return node.key;
+        }
     }
 
     @Override
-    public Spliterator<K> spliterator() {
-        return Map61B.super.spliterator();
+    public Iterator<K> iterator() {
+        return new BSTIterator();
     }
 
     /* remove all the mapping in the map */
@@ -117,9 +117,14 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         root = put(root, key, value);
     }
 
+    /**
+     * Recursively helper method for put interface
+     *
+     * @param node the root to put the key and value on it or its sub-tree
+     */
     private BSTNode<K, V> put(BSTNode<K, V> node, K key, V value) {
         if (node == null) {
-            return new BSTNode<>(key, value, null, null);
+            return new BSTNode<>(key, value);
         }
         int cmp = key.compareTo(node.key);
         if (cmp > 0) {
@@ -129,26 +134,22 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         } else {
             node.value = value;
         }
-        // int rightSize = node.right != null ? node.right.size : 0;
-        // int leftSize = node.left != null ? node.left.size : 0;
-        // node.size = 1 + leftSize + rightSize;
         node.size = 1 + size(node.left) + size(node.right);
         return node;
     }
 
     @Override
     public Set<K> keySet() {
-        Set<K> set = Set.of();
-        getKeys(root, set);
+        Set<K> set = new HashSet<>();
+        addKeysInSet(root, set);
         return set;
     }
 
-
-    private void getKeys(BSTNode<K, V> node, Set<K> set) {
+    private void addKeysInSet(BSTNode<K, V> node, Set<K> set) {
         if (node != null) {
-            getKeys(node.left, set);
+            addKeysInSet(node.left, set);
             set.add(node.key);
-            getKeys(node.right, set);
+            addKeysInSet(node.right, set);
         }
     }
 
@@ -204,7 +205,14 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         return findMin(node.left);
     }
 
-    /* 非典型递归
+    private BSTNode<K, V> findMax(BSTNode<K, V> node) {
+        if (node.right == null) {
+            return node;
+        }
+        return findMax(node.right);
+    }
+
+    /* non-typical recursive
     @Override
     public V remove(K key) {
         int cmp = key.compareTo(root.key);
@@ -258,11 +266,10 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         }
     }
 
-    /* 递归删除. 在方法里维护被删除节点@nextNode和其父节点@node之间的关系
-    *  param
-    *  @node 被删除节点可能在其子树的节点
-    *  @keyIsLarger 上轮递归中,@key和@node之间的比较结果
-    * @key 要删除的key
+    /*
+    *  Recursively remove. Maintain the connection of 'node' and its child
+    *  @param node 被删除节点可能在其子树的节点
+    *  @param keyIsLarger 上轮递归中,@key和@node之间的比较结果
     private V remove(BSTNode<K, V> node, K key, boolean keyIsLarger) {
         V ret;
         BSTNode<K, V> nextNode = keyIsLarger ? node.right : node.left;
@@ -291,9 +298,54 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
     }
     */
 
+    /**
+     * Remove the map where its key and value identical to both given key and value
+     *
+     * @param key   key to remove
+     * @param value value to remove
+     * @return the value had been removed. return null if there is no such map
+     */
     @Override
     public V remove(K key, V value) {
-        throw new UnsupportedOperationException();
+        V ret = get(key);
+        if (ret.equals(value)) {
+            root = remove(root, key, value);
+        } else {
+            ret = null;
+        }
+        return ret;
+    }
+
+    private BSTNode<K, V> remove(BSTNode<K, V> node, K key, V value) {
+        if (node == null) {
+            return null;
+        }
+        int cmp = key.compareTo(node.key);
+        if (cmp > 0) {
+            node.right = remove(node.right, key, value);
+            node.size = 1 + size(node.right) + size(node.left);
+        } else if (cmp < 0) {
+            node.left = remove(node.left, key, value);
+            node.size = 1 + size(node.right) + size(node.left);
+        } else {
+            /*
+            if (!node.value.equals(value)) { // always false
+                return node;
+            }
+            */
+            if (node.left == null) {
+                return node.right;
+            }
+            if (node.right == null) {
+                return node.left;
+            }
+            BSTNode<K, V> minInRight = findMin(node.right);
+            node.key = minInRight.key;
+            node.value = minInRight.value;
+
+            removeMin(node.right);
+        }
+        return node;
     }
 
     /* prints out your BSTMap in order of increasing Key. */

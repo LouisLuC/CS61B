@@ -10,7 +10,7 @@ public class TestBSTMapExtra {
 
     /*
     * Sanity test for keySet, only here because it's optional
-    */
+     */
     @Test
     public void sanityKeySetTest() {
     	BSTMap<String, Integer> b = new BSTMap<String, Integer>();
