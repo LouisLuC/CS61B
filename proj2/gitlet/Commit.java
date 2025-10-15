@@ -22,5 +22,12 @@ public class Commit {
     /** The message of this Commit. */
     private String message;
 
+    /** The parent commit of this commit */
+    private Commit parent;
+
     /* TODO: fill in the rest of this class. */
+    public Commit(String message){
+        this.message = message;
+        // parent = getParentFromFile
+    }
 }
