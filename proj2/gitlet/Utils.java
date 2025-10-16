@@ -120,6 +120,10 @@ class Utils {
         }
     }
 
+    static byte[] readContents(Path file) {
+        return readContents(file.toFile());
+    }
+
     /**
      * Return the entire contents of FILE as a String.  FILE must
      * be a normal file.  Throws IllegalArgumentException
@@ -172,6 +176,12 @@ class Utils {
                  | ClassNotFoundException excp) {
             throw new IllegalArgumentException(excp.getMessage());
         }
+    }
+
+    static <T extends Serializable> T readObject(String fileName,
+                                                 Class<T> expectedClass) {
+        File file = new File(fileName);
+        return readObject(file, expectedClass);
     }
 
     /**
@@ -256,8 +266,6 @@ class Utils {
         }
     }
 
-
-
     /* MESSAGES AND ERROR REPORTING */
 
     /**
@@ -278,24 +286,55 @@ class Utils {
     }
 
     static void exitsWithMessage(String msg) {
-        System.out.println(msg);
+        message(msg);
         System.exit(0);
     }
 
-    /* CHECK */
+    /* CHECKING */
+
     static void validateNumArgs(String[] args, int num, BiFunction<Integer, Integer, Boolean> validate) {
         if (!validate.apply(args.length, num)) {
             exitsWithMessage("Incorrect operands");
         }
     }
 
-    static boolean checkDirExist(String path) {
+    static boolean checkDirExist(String... paths) {
+        String path;
+        if(paths.length > 1)
+            path = String.join(Repository.DELIMITER, paths);
+        else path = paths[0];
         Path dir = Paths.get(path);
-        return Files.exists(dir) && Files.isDirectory(dir);
+        return checkDirExist(dir);
     }
 
-    static boolean checkFileExist(String path) {
-        Path dir = Paths.get(path);
-        return Files.exists(dir) && !Files.isDirectory(dir);
+    static boolean checkDirExist(Path path) {
+        return Files.exists(path) && Files.isDirectory(path);
     }
+
+    static boolean checkFileExist(String... paths) {
+        String path;
+        if(paths.length > 1)
+            path = String.join(Repository.DELIMITER, paths);
+        else path = paths[0];
+        Path file = Paths.get(path);
+        return checkFileExist(file);
+    }
+
+    static boolean checkFileExist(Path path) {
+        return Files.exists(path) && !Files.isDirectory(path);
+    }
+
+    static BiFunction<Integer, Integer, Boolean> equally = (argsNum, num) -> {
+        if (argsNum == num) {
+            return true;
+        }
+        return false;
+    };
+
+    static BiFunction<Integer, Integer, Boolean> largerAndEqual = (argsNum, num) -> {
+        if (argsNum >= num) {
+            return true;
+        }
+        return false;
+    };
 }
