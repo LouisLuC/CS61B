@@ -2,7 +2,6 @@ package gitlet;
 
 // TODO: any imports you need here
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -67,7 +66,7 @@ public class Commit implements Serializable {
     /* GETTER AND SETTER */
 
     public String getFileIDByFileName(String name) {
-        return fileMap.getOrDefault(name, "");
+        return fileMap.get(name);
     }
 
     public String putInFileMap(String fileName, String BlobId) {
@@ -76,6 +75,10 @@ public class Commit implements Serializable {
 
     public String getId() {
         return id;
+    }
+
+    String removeFileMap(String fileName) {
+        return fileMap.remove(fileName);
     }
 
     public String getMessage() {
@@ -105,14 +108,13 @@ public class Commit implements Serializable {
      */
     public static Commit createCommit(String message) {
         Commit newCommit = new Commit();
-
         // Update meta-data
         newCommit.message = message;
         newCommit.timestamp = new Timestamp(System.currentTimeMillis()).getTime();
-
-        newCommit.parentId = newCommit.id;
+        newCommit.parentId = null;
+        newCommit.mergedParentID = null;
         newCommit.id = Utils.sha1(newCommit.message, newCommit.timestamp);
-
+        newCommit.fileMap = new HashMap<>();
         return newCommit;
     }
 
@@ -127,17 +129,16 @@ public class Commit implements Serializable {
      * A commit that contains no files and has the commit message "initial commit",
      * commited when a repository initiates.
      */
-    public static Commit initCommit() throws IOException {
+    public static Commit initCommit() {
         Commit initCommit = new Commit();
 
         initCommit.message = "initial commit";
-        initCommit.parentId = null;
         initCommit.timestamp = new Timestamp(0).getTime();
-
-        initCommit.fileMap = new HashMap<>();
+        initCommit.parentId = null;
         initCommit.mergedParentID = null;
+        initCommit.fileMap = new HashMap<>();
+        initCommit.id = Utils.sha1(initCommit.message, initCommit.timestamp);
         return initCommit;
     }
-
 }
 

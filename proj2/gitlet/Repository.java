@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.*;
-import java.util.Map;
+import java.util.*;
 
 import static gitlet.Utils.*;
 
@@ -29,7 +29,20 @@ public class Repository {
 
     private static class Pointers implements Serializable {
         String HEAD;
-        Map<String, String> Branches;
+        Map<String, String> branches;
+
+        Pointers(String HEAD) {
+            this.HEAD = HEAD;
+            branches = new HashMap<>();
+        }
+    }
+
+    private static class Removal implements Serializable {
+        Set<String> filesToRemove;
+
+        Removal() {
+            this.filesToRemove = new HashSet<>();
+        }
     }
 
     /**
@@ -105,11 +118,18 @@ public class Repository {
             Commit initCmt = Commit.initCommit();
             _commit(initCmt);
 
-            Files.createFile(Paths.get(POINTER_FILE));
+            // Initiate Pointer file
+            Path pointerFile = Paths.get(POINTER_FILE);
+            Files.createFile(pointerFile);
+            Pointers ptr = new Pointers(initCmt.getId());
+            writeObject(pointerFile.toFile(), ptr);
             createBranch("master");
 
-            // TODO initialize these files
-            Files.createFile(Paths.get(REMOVAL_FILE));
+            // Initiate Removal file
+            Path removalFile = Paths.get(REMOVAL_FILE);
+            Files.createFile(removalFile);
+            Removal removal = new Removal();
+            writeObject(removalFile.toFile(), removal);
         } catch (FileAlreadyExistsException e) {
             exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
         }
@@ -131,77 +151,168 @@ public class Repository {
         }
         Commit headCommit = getHEADCommit();
         String commitedFileID = headCommit.getFileIDByFileName(file.getFileName().toString());
-        Blob fileInWorkingArea = new Blob(file);
+        Blob fileInCWD = new Blob(file);
 
-        if (fileInWorkingArea.id.equals(commitedFileID)) {
-            if (checkFileExist(STAGE_DIR, fileInWorkingArea.fileName))
-                removeFromStage(fileInWorkingArea.fileName, false);
-            // TODO The file will no longer be staged for removal (see gitlet rm),
-            //  if it was at the time of the command.
+        if (fileInCWD.id.equals(commitedFileID)) {
+            if (checkFileExist(ADDITION_DIR, fileInCWD.fileName))
+                removeFromStage(fileInCWD.fileName);
         } else {
-            writeObject(Paths.get(STAGE_DIR, fileInWorkingArea.fileName).toFile(), fileInWorkingArea);
+            writeObject(Paths.get(ADDITION_DIR, fileInCWD.fileName).toFile(), fileInCWD);
         }
+        // Try to delete it from removal
+        removeFromRemoval(fileInCWD.fileName);
     }
 
+
+    /* RELATED TO GITLET COMMIT */
+
+    /**
+     * Make a Commit with `message`, saving snap of tracked files
+     * TODO
+     */
     static void commit(String message) throws IOException {
         Commit commit = Commit.createCommitAsChildOf(getHEADCommit(), message);
-        // TODO Update according to Staging Area, Removal
+        // Add Staged files and clear Staging Area
+        for (String fileName : plainFilenamesIn(ADDITION_DIR)) {
+            Blob stagedBlob = getBlobFromStage(fileName);
+            commit.putInFileMap(fileName, stagedBlob.id);
+            saveBlobToRepo(stagedBlob);
+            removeFromStage(fileName);
+        }
+        // Remove untracked files
+        Removal removal = getRemoval();
+        for (String fileName : removal.filesToRemove) {
+            commit.removeFileMap(fileName);
+        }
+        clearRemoval();
+
+        Pointers ptr = getPointers();
+        // Move pointer of branch
+        for(String key : ptr.branches.keySet()) {
+            String ID = ptr.branches.get(key);
+            if (ptr.HEAD.equals(ID)) {
+                ptr.branches.put(key, commit.getId());
+            }
+        }
+        // Move HEAD pointer
+        ptr.HEAD = commit.getId();
+
         _commit(commit);
     }
 
-    /** Save a commit into a file in repository */
+    private static void clearRemoval() {
+        Removal clearRemoval = new Removal();
+        writeObject(Paths.get(REMOVAL_FILE).toFile(), clearRemoval);
+    }
+
+    /**
+     * Save a commit into a file in repository
+     */
     private static void _commit(Commit commit) throws IOException {
         Path commitPath = Files.createFile(Paths.get(COMMITS_DIR, commit.getId()));
         writeObject(commitPath.toFile(), commit);
     }
 
-    static void remove(String... fileName) {
-
+    /**
+     * Get the commit the HEAD pointer pointed to
+     */
+    private static Commit getHEADCommit() {
+        String HEAD = getPointers().HEAD;
+        return readObject(Paths.get(COMMITS_DIR, HEAD).toFile(), Commit.class);
     }
 
+    private static Blob getBlobFromStage(String fileName) {
+        Path blobPath = Paths.get(ADDITION_DIR, fileName);
+        return readObject(blobPath.toFile(), Blob.class);
+    }
+
+    private static Blob getBlobFromRepo(String ID) {
+        Path blobPath = Paths.get(BLOBS_DIR, ID);
+        return readObject(blobPath.toFile(), Blob.class);
+    }
+
+    private static void saveBlobToRepo(Blob blob) {
+        Path blobPath = Paths.get(BLOBS_DIR, blob.id);
+        if (!Files.exists(blobPath))
+            writeObject(blobPath.toFile(), blob);
+    }
+
+    /* RELATED TO POINTERS AND BRANCHES */
+
+    private static Pointers getPointers() {
+        File ptrFile = Paths.get(POINTER_FILE).toFile();
+        return readObject(ptrFile, Pointers.class);
+    }
+
+    private static void savePointers(Pointers ptr) {
+        File ptrFile = Paths.get(POINTER_FILE).toFile();
+        writeObject(ptrFile, ptr);
+    }
+
+    static void createBranch(String name) {
+        Pointers ptr = getPointers();
+        ptr.branches.put(name, ptr.HEAD);
+        savePointers(ptr);
+    }
+
+    /* RELATED TO GITLET REMOVE */
+
+    private static void remove(Path file) throws IOException {
+        Path fileInStage = Paths.get(ADDITION_DIR, file.getFileName().toString());
+        String blobId = getHEADCommit().getFileIDByFileName(file.getFileName().toString());
+        if (checkFileExist(fileInStage)) {
+            Files.delete(fileInStage);
+        }
+        if (blobId != null) {
+            stageToRemoval(file.getFileName().toString());
+        }
+        if (blobId == null && !checkFileExist(fileInStage)) {
+            exitsWithMessage("No reason to remove the file.");
+        }
+        restrictedDelete(file.toFile());
+    }
+
+    private static Removal getRemoval() {
+        Path removal_path = Paths.get(REMOVAL_FILE);
+        return readObject(removal_path.toFile(), Removal.class);
+    }
+
+    private static void saveRemoval(Removal removal) {
+        Path removal_path = Paths.get(REMOVAL_FILE);
+        writeObject(removal_path.toFile(), removal);
+    }
+
+
+    /**
+     * Remove a file from Staging Area
+     *
+     * @param fileName file name of one of files in Staging Area
+     */
+    private static void removeFromStage(String fileName) throws IOException {
+        Files.delete(Paths.get(STAGE_DIR, fileName));
+    }
+
+    private static void stageToRemoval(String fileName) {
+        Removal removal = getRemoval();
+        removal.filesToRemove.add(fileName);
+        saveRemoval(removal);
+    }
+
+    private static boolean removeFromRemoval(String fileName) {
+        Removal removal = getRemoval();
+        boolean isRemoved = removal.filesToRemove.remove(fileName);
+        saveRemoval(removal);
+        return isRemoved;
+    }
+
+    /* UTILITIES FOR MAIN */
+
     static void checkGitletInit(boolean checkExistence) {
-        boolean existence = Utils.checkDirExist(Repository.GITLET_DIR);
+        boolean existence = checkDirExist(Repository.GITLET_DIR);
         if (checkExistence && !existence) {
             exitsWithMessage("Not in an initialized Gitlet directory.");
         } else if (!checkExistence && existence) {
             exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
         }
     }
-
-    static void createBranch(String name) {
-        Pointers ptr;
-        File ptrFile = Paths.get(REMOVAL_FILE).toFile();
-        if (name.equals("master")) { // init commit
-            ptr = new Pointers();
-            ptr.HEAD = getHEADCommit().getId();
-        } else
-            ptr = readObject(ptrFile, Pointers.class);
-        ptr.Branches.put(name, ptr.HEAD);
-        writeObject(ptrFile, ptr);
-    }
-
-    /**
-     * Remove a file from Staging Area, putting it into Removal according to `toRemoval`
-     *
-     * @param fileName  file name of one of files in Staging Area
-     * @param toRemoval if to move the removed file to Removal
-     */
-    private static void removeFromStage(String fileName, boolean toRemoval) throws IOException {
-        if (toRemoval) Files.writeString(Paths.get(REMOVAL_FILE),
-                fileName,
-                StandardOpenOption.APPEND);
-        Files.delete(Paths.get(STAGE_DIR, fileName));
-    }
-
-    private static Pointers getPointers() {
-        File ptrFile = Paths.get(REMOVAL_FILE).toFile();
-        return readObject(ptrFile, Pointers.class);
-    }
-
-    /** Get the commit the HEAD pointer pointed to */
-    private static Commit getHEADCommit() {
-        String HEAD = getPointers().HEAD;
-        return readObject(Paths.get(COMMITS_DIR, HEAD).toFile(), Commit.class);
-    }
-
 }
