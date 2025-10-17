@@ -37,6 +37,8 @@ class Utils {
      */
     static final int UID_LENGTH = 40;
 
+    static final String DELIMITER = "/";
+
     /* SHA-1 HASH VALUES. */
 
     /**
@@ -301,7 +303,7 @@ class Utils {
     static boolean checkDirExist(String... paths) {
         String path;
         if(paths.length > 1)
-            path = String.join(Repository.DELIMITER, paths);
+            path = String.join(DELIMITER, paths);
         else path = paths[0];
         Path dir = Paths.get(path);
         return checkDirExist(dir);
@@ -314,7 +316,7 @@ class Utils {
     static boolean checkFileExist(String... paths) {
         String path;
         if(paths.length > 1)
-            path = String.join(Repository.DELIMITER, paths);
+            path = String.join(DELIMITER, paths);
         else path = paths[0];
         Path file = Paths.get(path);
         return checkFileExist(file);
@@ -324,17 +326,9 @@ class Utils {
         return Files.exists(path) && !Files.isDirectory(path);
     }
 
-    static BiFunction<Integer, Integer, Boolean> equally = (argsNum, num) -> {
-        if (argsNum == num) {
-            return true;
-        }
-        return false;
-    };
+    static BiFunction<Integer, Integer, Boolean> equally = Integer::equals;
 
     static BiFunction<Integer, Integer, Boolean> largerAndEqual = (argsNum, num) -> {
-        if (argsNum >= num) {
-            return true;
-        }
-        return false;
+        return argsNum >= num;
     };
 }

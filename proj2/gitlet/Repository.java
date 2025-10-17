@@ -47,7 +47,7 @@ public class Repository {
         }
     }
 
-    public static final String DELIMITER = "/";
+    // public static final String DELIMITER = "/";
 
     /** The current working directory. */
     public static final String CWD = System.getProperty("user.dir");
@@ -55,17 +55,24 @@ public class Repository {
     /** The .gitlet and associated directory. */
     public static final String GITLET_DIR = String.join(DELIMITER, CWD, ".gitlet");
 
-    /** Directory contains staged files for addition */
-    public static final String STAGE_PATH = String.join(DELIMITER, GITLET_DIR, "StagingArea");
+    /** Directory contains files associated to staging for addition and removal */
+    public static final String STAGE_DIR = String.join(DELIMITER, GITLET_DIR, "StagingArea");
+
+    public static final String ADDITION_DIR = String.join(DELIMITER, STAGE_DIR, "addition");
+
+    public static final String REMOVAL_FILE = String.join(DELIMITER, STAGE_DIR, "addition");
+
+    /** Directory contains things about repository, like Blobs, Commits */
+    public static final String REPO_DIR = String.join(DELIMITER, GITLET_DIR, "Repository");
 
     /** Directory contains Blob files */
-    public static final String BLOB_PATH = String.join(DELIMITER, GITLET_DIR, "Blobs");
+    public static final String BLOBS_DIR = String.join(DELIMITER, REPO_DIR, "Blobs");
 
-    public static final String COMMIT_PATH = String.join(DELIMITER, GITLET_DIR, "Commits");
+    /** Directory contains Commits */
+    public static final String COMMITS_DIR = String.join(DELIMITER, REPO_DIR, "Commits");
 
-    public static final String COMMIT_TREE_PATH = String.join(DELIMITER, COMMIT_PATH, "CommitTree");
+    public static final String COMMIT_TREE_FILE = String.join(DELIMITER, COMMITS_DIR, "CommitTree");
 
-    public static final String REMOVAL_PATH = String.join(DELIMITER, GITLET_DIR, "Removal");
 
     /* TODO: fill in the rest of this class. */
 
@@ -74,20 +81,23 @@ public class Repository {
 
     /**
      * TODO
-     * */
+     */
     static void gitletInit() throws IOException {
         Path gitlet = Paths.get(GITLET_DIR);
-        Path stage = Paths.get(STAGE_PATH);
-        Path commits = Paths.get(COMMIT_PATH);
-        Path commitTree = Paths.get(COMMIT_TREE_PATH);
-        Path blobs = Paths.get(BLOB_PATH);
-        Path removal = Paths.get(REMOVAL_PATH);
+        Path stage = Paths.get(STAGE_DIR);
+        Path addition = Paths.get(ADDITION_DIR);
+        Path commits = Paths.get(COMMITS_DIR);
+        Path blobs = Paths.get(BLOBS_DIR);
+
+        Path removal = Paths.get(REMOVAL_FILE);
+        Path commitTree = Paths.get(COMMIT_TREE_FILE);
         try {
             // Create .gitlet, and relative files
             Files.createDirectories(gitlet);
             Files.createDirectories(stage);
             Files.createDirectories(commits);
             Files.createDirectories(blobs);
+            Files.createDirectories(addition);
 
             commit("initial commit");
             createBranch("master");
@@ -120,12 +130,12 @@ public class Repository {
         Blob fileInWorkingArea = new Blob(file);
 
         if (fileInWorkingArea.id.equals(fileInHEADID)) {
-            if (checkFileExist(STAGE_PATH, fileInWorkingArea.fileName))
-                remove(STAGE_PATH, fileInWorkingArea.fileName);
+            if (checkFileExist(STAGE_DIR, fileInWorkingArea.fileName))
+                remove(STAGE_DIR, fileInWorkingArea.fileName);
             // TODO The file will no longer be staged for removal (see gitlet rm),
             //  if it was at the time of the command.
         } else {
-            writeObject(new File(STAGE_PATH, fileInWorkingArea.fileName), fileInWorkingArea);
+            writeObject(Paths.get(STAGE_DIR, fileInWorkingArea.fileName).toFile(), fileInWorkingArea);
         }
     }
 
@@ -146,11 +156,10 @@ public class Repository {
 
     static void checkGitletInit(boolean checkExistence) {
         boolean existence = Utils.checkDirExist(Repository.GITLET_DIR);
-        if (checkExistence) {
-            if (!existence) exitsWithMessage("Not in an initialized Gitlet directory.");
-        } else {
-            if (existence) exitsWithMessage("A Gitlet version-control system" +
-                    " already exists in the current directory.");
+        if (checkExistence && !existence) {
+            exitsWithMessage("Not in an initialized Gitlet directory.");
+        } else if (!checkExistence && existence) {
+            exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
         }
     }
 

@@ -46,6 +46,7 @@ public class Main {
                 if(!Utils.checkFileExist(fileName)) {
                     Utils.exitsWithMessage("File does not exist.");
                 }
+                // TODO Consider "./fileName" ?
                 add(Paths.get(CWD, fileName));
                 break;
             case "commit":

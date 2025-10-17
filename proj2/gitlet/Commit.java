@@ -57,7 +57,7 @@ public class Commit implements Serializable {
     }
 
     public void saveToFile() throws IOException {
-        File commitFile = Files.createFile(Paths.get(Repository.COMMIT_PATH, this.id)).toFile();
+        File commitFile = Files.createFile(Paths.get(Repository.COMMITS_DIR, this.id)).toFile();
         Utils.writeObject(commitFile, this);
     }
 
