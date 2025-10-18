@@ -141,9 +141,9 @@ public class Repository {
      * Add `file` content (Make it a 'Blob') into Staging Area.
      * If `file` does not exist, do nothing and exit with 0;
      * If `file` exists and:
-     * 1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
-     * 2. is not identical to HEAD, copy the file content into a Blob object,
-     * serialize it into a file which carries the same name with the `file` in Staging Area
+     *    1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
+     *    2. is not identical to HEAD, copy the file content into a Blob object,
+     * Serialize it into a file which carries the same name with the `file` in the Staging Area
      */
     static void add(Path file) throws IOException {
         if (!checkFileExist(file)) {
@@ -172,15 +172,22 @@ public class Repository {
      */
     static void commit(String message) throws IOException {
         Commit commit = Commit.createCommitAsChildOf(getHEADCommit(), message);
+        List<String> stagedFiles = plainFilenamesIn(ADDITION_DIR);
+
+        // Check
+        Removal removal = getRemoval();
+        if (stagedFiles.isEmpty() && removal.filesToRemove.isEmpty()) {
+            exitsWithMessage("No changes added to the commit.");
+        }
+
         // Add Staged files and clear Staging Area
-        for (String fileName : plainFilenamesIn(ADDITION_DIR)) {
+        for (String fileName : stagedFiles) {
             Blob stagedBlob = getBlobFromStage(fileName);
             commit.putInFileMap(fileName, stagedBlob.id);
             saveBlobToRepo(stagedBlob);
             removeFromStage(fileName);
         }
         // Remove untracked files
-        Removal removal = getRemoval();
         for (String fileName : removal.filesToRemove) {
             commit.removeFileMap(fileName);
         }
@@ -188,7 +195,7 @@ public class Repository {
 
         Pointers ptr = getPointers();
         // Move pointer of branch
-        for(String key : ptr.branches.keySet()) {
+        for (String key : ptr.branches.keySet()) {
             String ID = ptr.branches.get(key);
             if (ptr.HEAD.equals(ID)) {
                 ptr.branches.put(key, commit.getId());
@@ -257,6 +264,13 @@ public class Repository {
 
     /* RELATED TO GITLET REMOVE */
 
+    /**
+     * Remove a file in Gitlet Repository.
+     * if the file is staged in Staging Area, untrack it
+     * if the file is tracked by HEAD, stage it into Removal for committing
+     * And if the file exist in CWD, delete it
+     * if the file is not tracked and is not in Staging Area, exist with the message
+     * */
     private static void remove(Path file) throws IOException {
         Path fileInStage = Paths.get(ADDITION_DIR, file.getFileName().toString());
         String blobId = getHEADCommit().getFileIDByFileName(file.getFileName().toString());
@@ -272,11 +286,17 @@ public class Repository {
         restrictedDelete(file.toFile());
     }
 
+    /**
+     * Deserialize Removal file to get a Removal object.
+     * */
     private static Removal getRemoval() {
         Path removal_path = Paths.get(REMOVAL_FILE);
         return readObject(removal_path.toFile(), Removal.class);
     }
 
+    /**
+     * Serialize a Removal object into Removal file.
+     * */
     private static void saveRemoval(Removal removal) {
         Path removal_path = Paths.get(REMOVAL_FILE);
         writeObject(removal_path.toFile(), removal);

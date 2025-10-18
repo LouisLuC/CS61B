@@ -30,18 +30,23 @@ public class Main {
                 gitletInit();
                 break;
             case "add":
+
+                /* add multiple files
+
+                 checkGitletInit(true);
+                 validateNumArgs(args, 2, largerAndEqual);
+                 List<String> fileNames;
+                 if (args[1].equals("*") || args[1].equals(".")) {
+                 fileNames = Utils.plainFilenamesIn("./");
+                 } else {
+                 fileNames = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
+                 }
+                 handleAdd(fileNames);
+
+                 */
+
                 checkGitletInit(true);
                 validateNumArgs(args, 2, equally);
-                /** add multible files version
-                validateNumArgs(args, 2, largerAndEqual);
-                List<String> fileNames;
-                if (args[1].equals("*") || args[1].equals(".")) {
-                    fileNames = Utils.plainFilenamesIn("./");
-                } else {
-                    fileNames = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
-                }
-                handleAdd(fileNames);
-                */
                 String fileName = args[1];
                 if(!Utils.checkFileExist(fileName)) {
                     Utils.exitsWithMessage("File does not exist.");
@@ -52,9 +57,11 @@ public class Main {
             case "commit":
                 checkGitletInit(true);
                 validateNumArgs(args, 2, equally);
-                String Message = args[1];
-
-                // TODO handle commit
+                String message = args[1];
+                if(message.isBlank()) {
+                    exitsWithMessage("Please enter a commit message.");
+                }
+                commit(message);
                 break;
             case "checkout":
                 checkGitletInit(true);
@@ -69,6 +76,20 @@ public class Main {
             case "merge":
                 checkGitletInit(true);
                 // TODO
+                break;
+            case "rm":
+                break;
+            case "log":
+                break;
+            case "global-log":
+                break;
+            case "find":
+                break;
+            case "status":
+                break;
+            case "rm-branch":
+                break;
+            case "reset":
                 break;
             default:
                 exitsWithMessage("No command with that name exists.");

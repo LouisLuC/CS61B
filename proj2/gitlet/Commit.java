@@ -52,7 +52,7 @@ public class Commit implements Serializable {
     /**
      * The another parent commit id in merging of this commit, is null if the commit was created by merging
      */
-    private String mergedParentID;
+    private String mergedParentId;
 
     /**
      * a mapping of file names to blob references, Key is file names, and Value is Blob id
@@ -85,12 +85,12 @@ public class Commit implements Serializable {
         return message;
     }
 
-    public String getMergedParentID() {
-        return mergedParentID;
+    public String getMergedParentId() {
+        return mergedParentId;
     }
 
-    public void setMergedParentID(String mergedParentID) {
-        this.mergedParentID = mergedParentID;
+    public void setMergedParentId(String mergedParentId) {
+        this.mergedParentId = mergedParentId;
     }
 
     public String getParentId() {
@@ -100,6 +100,8 @@ public class Commit implements Serializable {
     public void setParentId(String parentId) {
         this.parentId = parentId;
     }
+
+    /* FACTORY METHODS */
 
     /**
      * Creating a new commit.
@@ -112,16 +114,19 @@ public class Commit implements Serializable {
         newCommit.message = message;
         newCommit.timestamp = new Timestamp(System.currentTimeMillis()).getTime();
         newCommit.parentId = null;
-        newCommit.mergedParentID = null;
+        newCommit.mergedParentId = null;
         newCommit.id = Utils.sha1(newCommit.message, newCommit.timestamp);
         newCommit.fileMap = new HashMap<>();
         return newCommit;
     }
 
+    /** Create a Commit as the other Commit's child, where the child is identical to
+     *  its parent except its meta-data and parentIds. */
     public static Commit createCommitAsChildOf(Commit parent, String message) {
         Commit newCommit = createCommit(message);
         newCommit.fileMap = parent.fileMap;
         newCommit.parentId = parent.id;
+        newCommit.mergedParentId = null;
         return newCommit;
     }
 
@@ -135,7 +140,7 @@ public class Commit implements Serializable {
         initCommit.message = "initial commit";
         initCommit.timestamp = new Timestamp(0).getTime();
         initCommit.parentId = null;
-        initCommit.mergedParentID = null;
+        initCommit.mergedParentId = null;
         initCommit.fileMap = new HashMap<>();
         initCommit.id = Utils.sha1(initCommit.message, initCommit.timestamp);
         return initCommit;
