@@ -84,6 +84,7 @@ public class Main {
                 // TODO
                 break;
             case "log":
+
                 break;
             case "global-log":
                 break;

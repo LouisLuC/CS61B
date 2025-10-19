@@ -135,7 +135,7 @@ public class Repository {
             writeObject(removalFile.toFile(), removal);
 
             // Init Commit
-            _commit(initCmt);
+            saveCommit(initCmt);
         } catch (FileAlreadyExistsException e) {
             if (Paths.get(e.getFile()).equals(Paths.get(GITLET_DIR)))
                 exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
@@ -184,6 +184,7 @@ public class Repository {
         // Check
         Removal removal = getRemoval();
         if (stagedFiles.isEmpty() && removal.filesToRemove.isEmpty()) {
+            // if there is no file to be tracked or removed, exist
             exitsWithMessage("No changes added to the commit.");
         }
 
@@ -198,22 +199,17 @@ public class Repository {
         for (String fileName : removal.filesToRemove) {
             commit.removeFileMap(fileName);
         }
-        clearRemoval();
 
         Pointers ptr = getPointers();
         // Move pointer of branch
-        for (String key : ptr.branches.keySet()) {
-            String ID = ptr.branches.get(key);
-            if (ptr.HEAD.equals(ID)) {
-                // TODO what if two branches points to same id?
-                ptr.branches.put(key, commit.getId());
-                break;
-            }
-        }
+        ptr.branches.put(ptr.currentBranch, commit.getId());
         // Move HEAD pointer
         ptr.HEAD = commit.getId();
 
-        _commit(commit);
+        // save change into files
+        clearRemoval();
+        savePointers(ptr);
+        saveCommit(commit);
     }
 
     private static void clearRemoval() {
@@ -224,7 +220,7 @@ public class Repository {
     /**
      * Save a commit into a file in repository
      */
-    private static void _commit(Commit commit) throws IOException {
+    private static void saveCommit(Commit commit) throws IOException {
         Path commitPath = Files.createFile(Paths.get(COMMITS_DIR, commit.getId()));
         writeObject(commitPath.toFile(), commit);
     }
@@ -253,23 +249,6 @@ public class Repository {
             writeObject(blobPath.toFile(), blob);
     }
 
-    /* RELATED TO POINTERS AND BRANCHES */
-
-    private static Pointers getPointers() {
-        File ptrFile = Paths.get(POINTER_FILE).toFile();
-        return readObject(ptrFile, Pointers.class);
-    }
-
-    private static void savePointers(Pointers ptr) {
-        File ptrFile = Paths.get(POINTER_FILE).toFile();
-        writeObject(ptrFile, ptr);
-    }
-
-    static void createBranch(String name) {
-        Pointers ptr = getPointers();
-        ptr.branches.put(name, ptr.HEAD);
-    }
-
     /* RELATED TO GITLET REMOVE */
 
     /**
@@ -282,12 +261,12 @@ public class Repository {
     static void remove(Path file) throws IOException {
         Path fileInStage = Paths.get(ADDITION_DIR, file.getFileName().toString());
         String blobId = getHEADCommit().getFileIDByFileName(file.getFileName().toString());
-        boolean isFileExisted = checkFileExist(fileInStage);
+        boolean isFileInStage = checkFileExist(fileInStage);
         boolean isFileTracked = blobId != null;
-        if (!isFileTracked && !isFileExisted) {
+        if (!isFileTracked && !isFileInStage) {
             exitsWithMessage("No reason to remove the file.");
         }
-        if (isFileExisted) {
+        if (isFileInStage) {
             Files.delete(fileInStage);
         }
         if (isFileTracked) {
@@ -334,6 +313,24 @@ public class Repository {
         saveRemoval(removal);
         return isRemoved;
     }
+
+    /* RELATED TO POINTERS AND BRANCHES */
+
+    private static Pointers getPointers() {
+        File ptrFile = Paths.get(POINTER_FILE).toFile();
+        return readObject(ptrFile, Pointers.class);
+    }
+
+    private static void savePointers(Pointers ptr) {
+        File ptrFile = Paths.get(POINTER_FILE).toFile();
+        writeObject(ptrFile, ptr);
+    }
+
+    static void createBranch(String name) {
+        Pointers ptr = getPointers();
+        ptr.branches.put(name, ptr.HEAD);
+    }
+
 
     /* UTILITIES FOR MAIN */
 
