@@ -1,8 +1,10 @@
 package gitlet;
 
+import javax.naming.InitialContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.function.BiFunction;
 
 import static gitlet.Utils.*;
 import static gitlet.Repository.*;
@@ -84,9 +86,14 @@ public class Main {
                 // TODO
                 break;
             case "log":
-
+                checkGitletInit(true);
+                validateNumArgs(args, 1, equally);
+                log();
                 break;
             case "global-log":
+                checkGitletInit(true);
+                validateNumArgs(args, 1, equally);
+                globalLog();
                 break;
             case "find":
                 break;

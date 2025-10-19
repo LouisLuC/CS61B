@@ -1,10 +1,13 @@
 package gitlet;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 
 import static gitlet.Utils.*;
 
@@ -98,7 +101,7 @@ public class Repository {
      */
     public static final String COMMITS_DIR = String.join(DELIMITER, REPO_DIR, "Commits");
 
-    public static final String POINTER_FILE = String.join(DELIMITER, COMMITS_DIR, "Pointers");
+    public static final String POINTER_FILE = String.join(DELIMITER, REPO_DIR, "Pointers");
 
 
     /* TODO: fill in the rest of this class. */
@@ -135,7 +138,7 @@ public class Repository {
             writeObject(removalFile.toFile(), removal);
 
             // Init Commit
-            saveCommit(initCmt);
+            saveCmt(initCmt);
         } catch (FileAlreadyExistsException e) {
             if (Paths.get(e.getFile()).equals(Paths.get(GITLET_DIR)))
                 exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
@@ -157,7 +160,7 @@ public class Repository {
         String commitedFileID = headCommit.getFileIDByFileName(file.getFileName().toString());
         Blob fileInCWD = new Blob(file);
 
-        // TODO test, delete later
+        // TODO test, TO BE DELETED later
         System.out.println("Id is: " + fileInCWD.id + "\nfileName is: " + fileInCWD.fileName);
 
         if (fileInCWD.id.equals(commitedFileID)) {
@@ -178,7 +181,7 @@ public class Repository {
      * TODO
      */
     static void commit(String message) throws IOException {
-        Commit commit = Commit.createCommitAsChildOf(getHEADCommit(), message);
+        Commit cmt = Commit.createCommitAsChildOf(getHEADCommit(), message);
         List<String> stagedFiles = plainFilenamesIn(ADDITION_DIR);
 
         // Check
@@ -191,25 +194,28 @@ public class Repository {
         // Add Staged files and clear Staging Area
         for (String fileName : stagedFiles) {
             Blob stagedBlob = getBlobFromStage(fileName);
-            commit.putInFileMap(fileName, stagedBlob.id);
+            cmt.putInFileMap(fileName, stagedBlob.id);
             saveBlobToRepo(stagedBlob);
             removeFromStage(fileName);
         }
         // Remove untracked files
         for (String fileName : removal.filesToRemove) {
-            commit.removeFileMap(fileName);
+            cmt.removeFileMap(fileName);
         }
 
         Pointers ptr = getPointers();
         // Move pointer of branch
-        ptr.branches.put(ptr.currentBranch, commit.getId());
+        ptr.branches.put(ptr.currentBranch, cmt.getId());
         // Move HEAD pointer
-        ptr.HEAD = commit.getId();
+        ptr.HEAD = cmt.getId();
+
+        // TODO test DELETE WHEN COMPLETE
+        printCmtInLog(cmt);
 
         // save change into files
         clearRemoval();
         savePointers(ptr);
-        saveCommit(commit);
+        saveCmt(cmt);
     }
 
     private static void clearRemoval() {
@@ -220,9 +226,17 @@ public class Repository {
     /**
      * Save a commit into a file in repository
      */
-    private static void saveCommit(Commit commit) throws IOException {
-        Path commitPath = Files.createFile(Paths.get(COMMITS_DIR, commit.getId()));
-        writeObject(commitPath.toFile(), commit);
+    private static void saveCmt(Commit cmt) throws IOException {
+        Path commitPath = Files.createFile(Paths.get(COMMITS_DIR, cmt.getId()));
+        writeObject(commitPath.toFile(), cmt);
+    }
+
+    /** Return commit from repository according to id */
+    private static Commit getCmtInRepo(String id) {
+        if (!checkFileExist(COMMITS_DIR, id) || id == null) {
+            return null;
+        }
+        return readObject(Paths.get(COMMITS_DIR, id).toFile(), Commit.class);
     }
 
     /**
@@ -252,7 +266,7 @@ public class Repository {
     /* RELATED TO GITLET REMOVE */
 
     /**
-     * Remove a file in Gitlet Repository.
+     * Remove a file from Gitlet Repository.
      * if the file is staged in Staging Area, untrack it
      * if the file is tracked by HEAD, stage it into Removal for committing
      * And if the file exist in CWD, delete it
@@ -312,6 +326,38 @@ public class Repository {
         boolean isRemoved = removal.filesToRemove.remove(fileName);
         saveRemoval(removal);
         return isRemoved;
+    }
+
+    /* RELATED TO LOG */
+
+    static void log() {
+        Commit currCmt = getHEADCommit();
+        while(currCmt != null) {
+            printCmtInLog(currCmt);
+            currCmt = getCmtInRepo(currCmt.getParentId());
+        }
+    }
+
+    static void printCmtInLog (Commit cmt) {
+        System.out.println("===");
+        System.out.println("commit " + cmt.getId());
+        if (cmt.getMergedParentId() != null) {
+            System.out.println("Merge: " + cmt.getMergedParentId());
+        }
+        SimpleDateFormat dateFmt = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.ENGLISH);
+        dateFmt.setTimeZone(TimeZone.getTimeZone("GMT-08:00"));
+        // TODO change timezone depending on where you live
+        System.out.println("Date: " + dateFmt.format(new Date(cmt.getTimestamp())));
+        System.out.println(cmt.getMessage());
+        System.out.println();
+    }
+
+    static void globalLog() {
+        List<String> cmtIDs = plainFilenamesIn(COMMITS_DIR);
+        for (String id : cmtIDs) {
+            Commit cmt = getCmtInRepo(id);
+            printCmtInLog(cmt);
+        }
     }
 
     /* RELATED TO POINTERS AND BRANCHES */

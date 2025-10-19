@@ -100,6 +100,10 @@ public class Commit implements Serializable {
         return parentId;
     }
 
+    public long getTimestamp() {
+        return this.timestamp;
+    }
+
     public void setParentId(String parentId) {
         this.parentId = parentId;
     }
