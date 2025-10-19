@@ -310,7 +310,7 @@ class Utils {
     }
 
     static boolean checkDirExist(Path path) {
-        return Files.exists(path) && Files.isDirectory(path);
+        return Files.isDirectory(path);
     }
 
     static boolean checkFileExist(String... paths) {

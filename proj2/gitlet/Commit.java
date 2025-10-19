@@ -6,6 +6,9 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.HashMap;
 
+import static gitlet.Utils.*;
+
+
 /**
  * Represents a gitlet commit object.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -35,7 +38,7 @@ public class Commit implements Serializable {
     /**
      * Created time for this commit.
      */
-    private long timestamp;
+    private Long timestamp;
 
     /**
      * SHA-1 hash code for Commit Object, through `message`, `Timestamp` TODO
@@ -115,7 +118,7 @@ public class Commit implements Serializable {
         newCommit.timestamp = new Timestamp(System.currentTimeMillis()).getTime();
         newCommit.parentId = null;
         newCommit.mergedParentId = null;
-        newCommit.id = Utils.sha1(newCommit.message, newCommit.timestamp);
+        newCommit.id = newCommit.createID();
         newCommit.fileMap = new HashMap<>();
         return newCommit;
     }
@@ -142,8 +145,12 @@ public class Commit implements Serializable {
         initCommit.parentId = null;
         initCommit.mergedParentId = null;
         initCommit.fileMap = new HashMap<>();
-        initCommit.id = Utils.sha1(initCommit.message, initCommit.timestamp);
+        initCommit.id = initCommit.createID();
         return initCommit;
+    }
+
+    private String createID() {
+        return sha1(this.message, this.timestamp.toString());
     }
 }
 

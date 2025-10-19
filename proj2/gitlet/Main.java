@@ -1,6 +1,7 @@
 package gitlet;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static gitlet.Utils.*;
@@ -63,6 +64,11 @@ public class Main {
                 }
                 commit(message);
                 break;
+            case "rm":
+                checkGitletInit(true);
+                validateNumArgs(args, 2, equally);
+                remove(Paths.get(CWD, args[1]));
+                break;
             case "checkout":
                 checkGitletInit(true);
                 validateNumArgs(args, 1, largerAndEqual);
@@ -76,8 +82,6 @@ public class Main {
             case "merge":
                 checkGitletInit(true);
                 // TODO
-                break;
-            case "rm":
                 break;
             case "log":
                 break;

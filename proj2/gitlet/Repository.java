@@ -29,11 +29,13 @@ public class Repository {
 
     private static class Pointers implements Serializable {
         String HEAD;
+        String currentBranch;
         Map<String, String> branches;
 
         Pointers(String HEAD) {
             this.HEAD = HEAD;
             branches = new HashMap<>();
+            branches.put("master", this.HEAD);
         }
     }
 
@@ -79,7 +81,7 @@ public class Repository {
 
     public static final String ADDITION_DIR = String.join(DELIMITER, STAGE_DIR, "addition");
 
-    public static final String REMOVAL_FILE = String.join(DELIMITER, STAGE_DIR, "addition");
+    public static final String REMOVAL_FILE = String.join(DELIMITER, STAGE_DIR, "Removal");
 
     /**
      * Directory contains things about repository, like Blobs, Commits
@@ -116,7 +118,6 @@ public class Repository {
             Files.createDirectories(Paths.get(ADDITION_DIR));
 
             Commit initCmt = Commit.initCommit();
-            _commit(initCmt);
 
             // Initiate Pointer file
             Path pointerFile = Paths.get(POINTER_FILE);
@@ -124,14 +125,20 @@ public class Repository {
             Pointers ptr = new Pointers(initCmt.getId());
             writeObject(pointerFile.toFile(), ptr);
             createBranch("master");
+            ptr.currentBranch = "master";
+            savePointers(ptr);
 
             // Initiate Removal file
             Path removalFile = Paths.get(REMOVAL_FILE);
             Files.createFile(removalFile);
             Removal removal = new Removal();
             writeObject(removalFile.toFile(), removal);
+
+            // Init Commit
+            _commit(initCmt);
         } catch (FileAlreadyExistsException e) {
-            exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
+            if (Paths.get(e.getFile()).equals(Paths.get(GITLET_DIR)))
+                exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
         }
     }
 
@@ -141,17 +148,17 @@ public class Repository {
      * Add `file` content (Make it a 'Blob') into Staging Area.
      * If `file` does not exist, do nothing and exit with 0;
      * If `file` exists and:
-     *    1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
-     *    2. is not identical to HEAD, copy the file content into a Blob object,
+     * 1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
+     * 2. is not identical to HEAD, copy the file content into a Blob object,
      * Serialize it into a file which carries the same name with the `file` in the Staging Area
      */
     static void add(Path file) throws IOException {
-        if (!checkFileExist(file)) {
-            exitsWithMessage("File does not exist.");
-        }
         Commit headCommit = getHEADCommit();
         String commitedFileID = headCommit.getFileIDByFileName(file.getFileName().toString());
         Blob fileInCWD = new Blob(file);
+
+        // TODO test, delete later
+        System.out.println("Id is: " + fileInCWD.id + "\nfileName is: " + fileInCWD.fileName);
 
         if (fileInCWD.id.equals(commitedFileID)) {
             if (checkFileExist(ADDITION_DIR, fileInCWD.fileName))
@@ -198,7 +205,9 @@ public class Repository {
         for (String key : ptr.branches.keySet()) {
             String ID = ptr.branches.get(key);
             if (ptr.HEAD.equals(ID)) {
+                // TODO what if two branches points to same id?
                 ptr.branches.put(key, commit.getId());
+                break;
             }
         }
         // Move HEAD pointer
@@ -259,7 +268,6 @@ public class Repository {
     static void createBranch(String name) {
         Pointers ptr = getPointers();
         ptr.branches.put(name, ptr.HEAD);
-        savePointers(ptr);
     }
 
     /* RELATED TO GITLET REMOVE */
@@ -270,25 +278,27 @@ public class Repository {
      * if the file is tracked by HEAD, stage it into Removal for committing
      * And if the file exist in CWD, delete it
      * if the file is not tracked and is not in Staging Area, exist with the message
-     * */
-    private static void remove(Path file) throws IOException {
+     */
+    static void remove(Path file) throws IOException {
         Path fileInStage = Paths.get(ADDITION_DIR, file.getFileName().toString());
         String blobId = getHEADCommit().getFileIDByFileName(file.getFileName().toString());
-        if (checkFileExist(fileInStage)) {
+        boolean isFileExisted = checkFileExist(fileInStage);
+        boolean isFileTracked = blobId != null;
+        if (!isFileTracked && !isFileExisted) {
+            exitsWithMessage("No reason to remove the file.");
+        }
+        if (isFileExisted) {
             Files.delete(fileInStage);
         }
-        if (blobId != null) {
+        if (isFileTracked) {
             stageToRemoval(file.getFileName().toString());
-        }
-        if (blobId == null && !checkFileExist(fileInStage)) {
-            exitsWithMessage("No reason to remove the file.");
         }
         restrictedDelete(file.toFile());
     }
 
     /**
      * Deserialize Removal file to get a Removal object.
-     * */
+     */
     private static Removal getRemoval() {
         Path removal_path = Paths.get(REMOVAL_FILE);
         return readObject(removal_path.toFile(), Removal.class);
@@ -296,7 +306,7 @@ public class Repository {
 
     /**
      * Serialize a Removal object into Removal file.
-     * */
+     */
     private static void saveRemoval(Removal removal) {
         Path removal_path = Paths.get(REMOVAL_FILE);
         writeObject(removal_path.toFile(), removal);
@@ -309,7 +319,7 @@ public class Repository {
      * @param fileName file name of one of files in Staging Area
      */
     private static void removeFromStage(String fileName) throws IOException {
-        Files.delete(Paths.get(STAGE_DIR, fileName));
+        Files.delete(Paths.get(ADDITION_DIR, fileName));
     }
 
     private static void stageToRemoval(String fileName) {
