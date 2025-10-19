@@ -1,7 +1,7 @@
 package gitlet;
 
+import javax.swing.*;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.*;
@@ -231,7 +231,9 @@ public class Repository {
         writeObject(commitPath.toFile(), cmt);
     }
 
-    /** Return commit from repository according to id */
+    /**
+     * Return commit from repository according to id
+     */
     private static Commit getCmtInRepo(String id) {
         if (!checkFileExist(COMMITS_DIR, id) || id == null) {
             return null;
@@ -332,13 +334,13 @@ public class Repository {
 
     static void log() {
         Commit currCmt = getHEADCommit();
-        while(currCmt != null) {
+        while (currCmt != null) {
             printCmtInLog(currCmt);
             currCmt = getCmtInRepo(currCmt.getParentId());
         }
     }
 
-    static void printCmtInLog (Commit cmt) {
+    static void printCmtInLog(Commit cmt) {
         System.out.println("===");
         System.out.println("commit " + cmt.getId());
         if (cmt.getMergedParentId() != null) {
@@ -349,7 +351,6 @@ public class Repository {
         // TODO change timezone depending on where you live
         System.out.println("Date: " + dateFmt.format(new Date(cmt.getTimestamp())));
         System.out.println(cmt.getMessage());
-        System.out.println();
     }
 
     static void globalLog() {
@@ -358,6 +359,64 @@ public class Repository {
             Commit cmt = getCmtInRepo(id);
             printCmtInLog(cmt);
         }
+    }
+
+    /**
+     * Prints out the ids of all commits that have the given commit message, one per line.
+     * If there are multiple such commits, it prints the ids out on separate lines.
+     */
+    static void find(String msg) {
+        List<String> cmtIDs = plainFilenamesIn(COMMITS_DIR);
+        for (String id : cmtIDs) {
+            Commit cmt = getCmtInRepo(id);
+            if (msg.equals(cmt.getMessage())) {
+                System.out.println(cmt.getId());
+            }
+        }
+    }
+
+    /* RELATED TO STATUS */
+
+    static void status() {
+        printBranch();
+        printStage();
+        printRemoval();
+    }
+
+    static void printBranch() {
+        Pointers ptr = getPointers();
+        System.out.println("=== Branches ===\n");
+        System.out.println("*" + ptr.currentBranch);
+        for (String name : ptr.branches.keySet()) {
+            if(!name.equals(ptr.currentBranch)) {
+                System.out.println(name);
+            }
+        }
+        System.out.println();
+    }
+
+    static void printStage() {
+        System.out.println("=== Staged Files ===\n");
+        for (String fileName : plainFilenamesIn(ADDITION_DIR)) {
+            System.out.println(fileName+"\n");
+        }
+    }
+
+    static void printRemoval() {
+        Removal removal = getRemoval();
+        for (String fileToRemove:removal.filesToRemove){
+            System.out.println(fileToRemove+"\n");
+        }
+    }
+
+    static void modificationNotStaged() {
+        System.out.println("=== Modifications Not Staged For Commit ===\n");
+
+    }
+
+    static void printUntrackFile() {
+        System.out.println("=== Untracked Files ===\n");
+
     }
 
     /* RELATED TO POINTERS AND BRANCHES */

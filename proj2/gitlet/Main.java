@@ -96,8 +96,14 @@ public class Main {
                 globalLog();
                 break;
             case "find":
+                checkGitletInit(true);
+                validateNumArgs(args, 2, equally);
+                find(args[1]);
                 break;
             case "status":
+                checkGitletInit(true);
+                validateNumArgs(args, 1, equally);
+                status();
                 break;
             case "rm-branch":
                 break;
