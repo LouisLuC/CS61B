@@ -21,97 +21,104 @@ public class Main {
      * <COMMAND> <OPERAND1> <OPERAND2> ...
      */
     public static void main(String[] args) throws IOException {
-        if (args.length == 0) {
-            exitsWithMessage("Please enter a command.");
+        try {
+            if (args.length == 0) {
+                throw new GitletException("Please enter a command.");
+            }
+            String firstArg = args[0];
+            switch (firstArg) {
+                case "init":
+                    // Start a Gitlet repository in current work directory
+                    validateNumArgs(args, 1, equally);
+                    checkGitletInit(false);
+                    gitletInit();
+                    break;
+                case "add":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    String fileName = args[1];
+                    if (!checkFileExist(fileName)) {
+                        throw new GitletException("File does not exist.");
+                    }
+                    // Does not consider "./fileName"
+                    add(Paths.get(CWD, fileName));
+                    break;
+                case "commit":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    String message = args[1];
+                    if (message.isBlank()) {
+                        throw new GitletException("Please enter a commit message.");
+                    }
+                    commit(message);
+                    break;
+                case "rm":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    remove(Paths.get(CWD, args[1]));
+                    break;
+                case "checkout":
+                    checkGitletInit(true);
+                    handleCheckout(args);
+                    break;
+                case "branch":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    createBranch(args[1]);
+                    break;
+                case "merge":
+                    checkGitletInit(true);
+                    // TODO
+                    break;
+                case "log":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 1, equally);
+                    log();
+                    break;
+                case "global-log":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 1, equally);
+                    globalLog();
+                    break;
+                case "find":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    find(args[1]);
+                    break;
+                case "status":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 1, equally);
+                    status();
+                    break;
+                case "rm-branch":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    removeBranch(args[1]);
+                    break;
+                case "reset":
+                    break;
+                default:
+                    throw new GitletException("No command with that name exists.");
+                    // TODO: FILL THE REST IN
+            }
+        } catch (GitletException e) {
+            exitsWithMessage(e.getMessage());
         }
-        String firstArg = args[0];
-        switch (firstArg) {
-            case "init":
-                // Start a Gitlet repository in current work directory
-                validateNumArgs(args, 1, equally);
-                checkGitletInit(false);
-                gitletInit();
-                break;
-            case "add":
+    }
 
-                /* add multiple files
-
-                 checkGitletInit(true);
-                 validateNumArgs(args, 2, largerAndEqual);
-                 List<String> fileNames;
-                 if (args[1].equals("*") || args[1].equals(".")) {
-                 fileNames = Utils.plainFilenamesIn("./");
-                 } else {
-                 fileNames = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
-                 }
-                 handleAdd(fileNames);
-
-                 */
-
-                checkGitletInit(true);
-                validateNumArgs(args, 2, equally);
-                String fileName = args[1];
-                if(!Utils.checkFileExist(fileName)) {
-                    Utils.exitsWithMessage("File does not exist.");
-                }
-                // TODO Consider "./fileName" ?
-                add(Paths.get(CWD, fileName));
+    static void handleCheckout(String[] args) throws IOException {
+        switch (args.length) {
+            case 2:
+                checkoutToBranch(args[1]);
                 break;
-            case "commit":
-                checkGitletInit(true);
-                validateNumArgs(args, 2, equally);
-                String message = args[1];
-                if(message.isBlank()) {
-                    exitsWithMessage("Please enter a commit message.");
-                }
-                commit(message);
+            case 3:
+                checkout(args[2]);
                 break;
-            case "rm":
-                checkGitletInit(true);
-                validateNumArgs(args, 2, equally);
-                remove(Paths.get(CWD, args[1]));
-                break;
-            case "checkout":
-                checkGitletInit(true);
-                validateNumArgs(args, 1, largerAndEqual);
-                //TODO handle checkout
-                break;
-            case "branch":
-                checkGitletInit(true);
-                // TODO check nums
-                // TODO handle branch
-                break;
-            case "merge":
-                checkGitletInit(true);
-                // TODO
-                break;
-            case "log":
-                checkGitletInit(true);
-                validateNumArgs(args, 1, equally);
-                log();
-                break;
-            case "global-log":
-                checkGitletInit(true);
-                validateNumArgs(args, 1, equally);
-                globalLog();
-                break;
-            case "find":
-                checkGitletInit(true);
-                validateNumArgs(args, 2, equally);
-                find(args[1]);
-                break;
-            case "status":
-                checkGitletInit(true);
-                validateNumArgs(args, 1, equally);
-                status();
-                break;
-            case "rm-branch":
-                break;
-            case "reset":
+            case 4:
+                checkout(args[3], args[1]);
                 break;
             default:
-                exitsWithMessage("No command with that name exists.");
-                // TODO: FILL THE REST IN
+                throw new GitletException("Incorrect operands");
         }
     }
 }

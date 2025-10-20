@@ -38,6 +38,7 @@ public class Repository {
             this.HEAD = HEAD;
             branches = new HashMap<>();
             branches.put("master", this.HEAD);
+            currentBranch = "master";
         }
     }
 
@@ -125,9 +126,6 @@ public class Repository {
             Path pointerFile = Paths.get(POINTER_FILE);
             Files.createFile(pointerFile);
             Pointers ptr = new Pointers(initCmt.getId());
-            writeObject(pointerFile.toFile(), ptr);
-            createBranch("master");
-            ptr.currentBranch = "master";
             savePointers(ptr);
 
             // Initiate Removal file
@@ -140,7 +138,7 @@ public class Repository {
             saveCmt(initCmt);
         } catch (FileAlreadyExistsException e) {
             if (Paths.get(e.getFile()).equals(Paths.get(GITLET_DIR)))
-                exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
+                throw new GitletException("A Gitlet version-control system already exists in the current directory.");
         }
     }
 
@@ -148,10 +146,10 @@ public class Repository {
 
     /**
      * Add `file` content (Make it a 'Blob') into Staging Area.
-     * If `file` does not exist, do nothing and exit with 0;
+     * If `file` does not exist, throw GitletException;
      * If `file` exists and:
-     * 1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
-     * 2. is not identical to HEAD, copy the file content into a Blob object,
+     *     1. is identical to the file in HEAD commit with same name, do nothing or delete former file added before.
+     *     2. is not identical to HEAD, copy the file content into a Blob object,
      * Serialize it into a file which carries the same name with the `file` in the Staging Area
      */
     static void add(Path file) throws IOException {
@@ -186,7 +184,7 @@ public class Repository {
         Removal removal = getRemoval();
         if (stagedFiles.isEmpty() && removal.filesToRemove.isEmpty()) {
             // if there is no file to be tracked or removed, exist
-            exitsWithMessage("No changes added to the commit.");
+            throw new GitletException("No changes added to the commit.");
         }
 
         // Add Staged files and clear Staging Area
@@ -244,7 +242,8 @@ public class Repository {
      */
     private static Commit getHEADCmt() {
         String HEAD = getPointers().HEAD;
-        return readObject(Paths.get(COMMITS_DIR, HEAD).toFile(), Commit.class);
+        return getCmtInRepo(HEAD);
+        // return readObject(Paths.get(COMMITS_DIR, HEAD).toFile(), Commit.class);
     }
 
     private static Blob getBlobFromStage(String fileName) {
@@ -278,7 +277,7 @@ public class Repository {
         boolean isFileInStage = checkFileExist(fileInStage);
         boolean isFileTracked = blobId != null;
         if (!isFileTracked && !isFileInStage) {
-            exitsWithMessage("No reason to remove the file.");
+            throw new GitletException("No reason to remove the file.");
         }
         if (isFileInStage) {
             Files.delete(fileInStage);
@@ -312,6 +311,11 @@ public class Repository {
      */
     private static void removeFromStage(String fileName) throws IOException {
         Files.delete(Paths.get(ADDITION_DIR, fileName));
+    }
+
+    private static void clearStage() throws IOException {
+        for (String fileName : plainFilenamesIn(ADDITION_DIR))
+            removeFromStage(fileName);
     }
 
     private static void stageToRemoval(String fileName) {
@@ -468,6 +472,91 @@ public class Repository {
         System.out.println();
     }
 
+    /* RELATED TO CHECKOUT COMMAND */
+
+    static void checkout(String fileName) throws IOException {
+        String HEADId = getPointers().HEAD;
+        checkout(fileName, HEADId);
+    }
+
+    static void checkout(String fileName, String cmtId) throws IOException {
+        // TODO the ID may be abbreviated version, see spec
+        Commit cmt = getCmtInRepo(cmtId);
+        if (cmt == null) { throw new GitletException("No commit with that id exists."); }
+
+        String fileId = cmt.getFileIDByFileName(fileName);
+        if (fileId == null) { throw new GitletException("File does not exist in that commit."); }
+
+        Blob fileInBlob = getBlobFromRepo(fileId);
+
+        Files.write(Paths.get(CWD, fileName), fileInBlob.contents);
+    }
+
+    static void checkoutToBranch(String branchName) throws IOException {
+        Pointers ptr = getPointers();
+        String branchCmtId = ptr.branches.get(branchName);
+
+        if (branchName.equals(ptr.currentBranch)) throw new GitletException("No need to checkout the current branch.");
+        if (branchCmtId == null) throw new GitletException("No such branch exists.");
+
+        checkoutFilesToCmt(branchCmtId);
+
+        // Change current branch and HEAD pointer
+        ptr.currentBranch = branchName;
+        ptr.HEAD = branchCmtId;
+        savePointers(ptr);
+    }
+
+    /**
+     * Checkout files to a specific commit
+     * Note: this method focuses on checkout files in Staging Area and CWD, would not modify pointers
+     *
+     * @param cmtId specified commit id
+     * */
+    private static void checkoutFilesToCmt(String cmtId) throws IOException {
+        Commit coutCmt = getCmtInRepo(cmtId);
+        Commit currCmt = getHEADCmt();
+
+        // (*) Find any files that are tracked (which means files stored in commit and staged for addition)
+        // in the current branch but are not present in the checked-out branch
+        List<String> currTrackNotInCoutCmtFiles = new ArrayList<>(currCmt.getAllTrackedFiles());
+        List<String> stagedNotInCoutCmtFiles = plainFilenamesIn(ADDITION_DIR);
+
+        for (String fileName : coutCmt.getAllTrackedFiles()) {
+            String fileId = coutCmt.getFileIDByFileName(fileName);
+            Blob fileInRepo = getBlobFromRepo(fileId);
+            Files.write(Paths.get(CWD, fileName), fileInRepo.contents);
+
+            // For (*)
+            currTrackNotInCoutCmtFiles.remove(fileName);
+            stagedNotInCoutCmtFiles.remove(fileName);
+        }
+
+        // Delete any files in (*)
+        for (String fileName : currTrackNotInCoutCmtFiles)
+            restrictedDelete(Paths.get(CWD, fileName).toFile());
+        for(String fileName:stagedNotInCoutCmtFiles)
+            restrictedDelete(Paths.get(CWD, fileName).toFile());
+
+        // Clear the staging area
+        clearStage();
+        clearRemoval();
+    }
+
+    static void reset(String cmtId) throws IOException {
+        // TODO If a working file is untracked in the current branch and would be overwritten by the reset, print
+        //    `There is an untracked file in the way; delete it, or add and commit it first.`
+        //     and exit; perform this check before doing anything else.
+        if (!checkFileExist(COMMITS_DIR, cmtId)) throw new GitletException("No commit with that id exists.");
+
+        checkoutFilesToCmt(cmtId);
+
+        Pointers ptr = getPointers();
+        // Change current branch and HEAD pointer
+        ptr.HEAD = cmtId;
+        savePointers(ptr);
+    }
+
     /* RELATED TO POINTERS AND BRANCHES */
 
     private static Pointers getPointers() {
@@ -483,6 +572,18 @@ public class Repository {
     static void createBranch(String name) {
         Pointers ptr = getPointers();
         ptr.branches.put(name, ptr.HEAD);
+        savePointers(ptr);
+    }
+
+    /**
+     * Deletes the branch with the given name.
+     * This only means to delete the pointer associated with the branch
+     * */
+    static void removeBranch(String name) {
+        Pointers ptr = getPointers();
+        if (ptr.currentBranch.equals(name)) throw new GitletException("Cannot remove the current branch.");
+        if (!ptr.branches.containsKey(name)) throw new GitletException("A branch with that name does not exist.");
+        ptr.branches.remove(name);
     }
 
     /* RELATED TO STAGE */
@@ -494,9 +595,9 @@ public class Repository {
     static void checkGitletInit(boolean checkExistence) {
         boolean existence = checkDirExist(Repository.GITLET_DIR);
         if (checkExistence && !existence) {
-            exitsWithMessage("Not in an initialized Gitlet directory.");
+            throw new GitletException("Not in an initialized Gitlet directory.");
         } else if (!checkExistence && existence) {
-            exitsWithMessage("A Gitlet version-control system already exists in the current directory.");
+            throw new GitletException("A Gitlet version-control system already exists in the current directory.");
         }
     }
 }

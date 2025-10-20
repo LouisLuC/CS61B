@@ -296,7 +296,7 @@ class Utils {
 
     static void validateNumArgs(String[] args, int num, BiFunction<Integer, Integer, Boolean> validate) {
         if (!validate.apply(args.length, num)) {
-            exitsWithMessage("Incorrect operands");
+            throw new GitletException("Incorrect operands");
         }
     }
 
