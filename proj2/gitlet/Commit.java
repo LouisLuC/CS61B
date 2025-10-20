@@ -5,6 +5,7 @@ package gitlet;
 import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.Set;
 
 import static gitlet.Utils.*;
 
@@ -106,6 +107,10 @@ public class Commit implements Serializable {
 
     public void setParentId(String parentId) {
         this.parentId = parentId;
+    }
+
+    public Set<String> getAllTrackedFiles() {
+        return this.fileMap.keySet();
     }
 
     /* FACTORY METHODS */

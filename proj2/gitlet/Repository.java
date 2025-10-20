@@ -1,6 +1,5 @@
 package gitlet;
 
-import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -156,7 +155,7 @@ public class Repository {
      * Serialize it into a file which carries the same name with the `file` in the Staging Area
      */
     static void add(Path file) throws IOException {
-        Commit headCommit = getHEADCommit();
+        Commit headCommit = getHEADCmt();
         String commitedFileID = headCommit.getFileIDByFileName(file.getFileName().toString());
         Blob fileInCWD = new Blob(file);
 
@@ -173,7 +172,6 @@ public class Repository {
         removeFromRemoval(fileInCWD.fileName);
     }
 
-
     /* RELATED TO GITLET COMMIT */
 
     /**
@@ -181,7 +179,7 @@ public class Repository {
      * TODO
      */
     static void commit(String message) throws IOException {
-        Commit cmt = Commit.createCommitAsChildOf(getHEADCommit(), message);
+        Commit cmt = Commit.createCommitAsChildOf(getHEADCmt(), message);
         List<String> stagedFiles = plainFilenamesIn(ADDITION_DIR);
 
         // Check
@@ -244,7 +242,7 @@ public class Repository {
     /**
      * Get the commit the HEAD pointer pointed to
      */
-    private static Commit getHEADCommit() {
+    private static Commit getHEADCmt() {
         String HEAD = getPointers().HEAD;
         return readObject(Paths.get(COMMITS_DIR, HEAD).toFile(), Commit.class);
     }
@@ -276,7 +274,7 @@ public class Repository {
      */
     static void remove(Path file) throws IOException {
         Path fileInStage = Paths.get(ADDITION_DIR, file.getFileName().toString());
-        String blobId = getHEADCommit().getFileIDByFileName(file.getFileName().toString());
+        String blobId = getHEADCmt().getFileIDByFileName(file.getFileName().toString());
         boolean isFileInStage = checkFileExist(fileInStage);
         boolean isFileTracked = blobId != null;
         if (!isFileTracked && !isFileInStage) {
@@ -307,7 +305,6 @@ public class Repository {
         writeObject(removal_path.toFile(), removal);
     }
 
-
     /**
      * Remove a file from Staging Area
      *
@@ -333,7 +330,7 @@ public class Repository {
     /* RELATED TO LOG */
 
     static void log() {
-        Commit currCmt = getHEADCommit();
+        Commit currCmt = getHEADCmt();
         while (currCmt != null) {
             printCmtInLog(currCmt);
             currCmt = getCmtInRepo(currCmt.getParentId());
@@ -351,6 +348,7 @@ public class Repository {
         // TODO change timezone depending on where you live
         System.out.println("Date: " + dateFmt.format(new Date(cmt.getTimestamp())));
         System.out.println(cmt.getMessage());
+        System.out.println();
     }
 
     static void globalLog() {
@@ -381,42 +379,93 @@ public class Repository {
         printBranch();
         printStage();
         printRemoval();
+        printUntrackFileAndModificationNotStaged();
     }
 
     static void printBranch() {
         Pointers ptr = getPointers();
-        System.out.println("=== Branches ===\n");
-        System.out.println("*" + ptr.currentBranch);
-        for (String name : ptr.branches.keySet()) {
-            if(!name.equals(ptr.currentBranch)) {
-                System.out.println(name);
+        System.out.println("=== Branches ===");
+
+        List<String> printable = new ArrayList<>(ptr.branches.keySet());
+        printable.sort(String.CASE_INSENSITIVE_ORDER);
+
+        for (String name : printable) {
+            if (name.equals(ptr.currentBranch)) {
+                name = "*" + name;
             }
+            System.out.println(name);
         }
         System.out.println();
     }
 
     static void printStage() {
-        System.out.println("=== Staged Files ===\n");
+        System.out.println("=== Staged Files ===");
         for (String fileName : plainFilenamesIn(ADDITION_DIR)) {
-            System.out.println(fileName+"\n");
+            System.out.println(fileName);
         }
+        System.out.println();
     }
 
     static void printRemoval() {
         Removal removal = getRemoval();
-        for (String fileToRemove:removal.filesToRemove){
-            System.out.println(fileToRemove+"\n");
+        System.out.println("=== Removed Files ===");
+        List<String> printable = new ArrayList<>(removal.filesToRemove);
+        printable.sort(String.CASE_INSENSITIVE_ORDER);
+        for (String fileToRemove : removal.filesToRemove) {
+            System.out.println(fileToRemove);
         }
+        System.out.println();
     }
 
-    static void modificationNotStaged() {
-        System.out.println("=== Modifications Not Staged For Commit ===\n");
 
-    }
+    static void printUntrackFileAndModificationNotStaged() {
+        Commit HEAD = getHEADCmt();
 
-    static void printUntrackFile() {
-        System.out.println("=== Untracked Files ===\n");
+        List<String> filesInCWD = plainFilenamesIn(CWD);
+        Set<String> filesTracked = HEAD.getAllTrackedFiles();
+        List<String> filesStaged = plainFilenamesIn(ADDITION_DIR);
+        Set<String> filesToRemove = getRemoval().filesToRemove;
 
+        List<String> modifications = new ArrayList<>();
+        List<String> untracked = new ArrayList<>(filesInCWD);
+        List<String> filesStagedButNotInCWD = new ArrayList<>(filesStaged);
+        List<String> filesTrackedNotInCWD = new ArrayList<>(filesTracked);
+
+        for (String fileName : filesInCWD) {
+            String CWDId = new Blob(Paths.get(CWD, fileName)).id;
+            String additionId = filesStaged.contains(fileName) ? getBlobFromStage(fileName).id : null;
+            String commitId = HEAD.getFileIDByFileName(fileName);
+            if ((additionId != null && !additionId.equals(CWDId)) ||
+                    (commitId != null && additionId == null && !commitId.equals(CWDId))) {
+                modifications.add(fileName + " (modified)");
+            }
+            if (additionId != null || commitId != null) {
+                untracked.remove(fileName);
+            }
+            filesStagedButNotInCWD.remove(fileName);
+            filesTrackedNotInCWD.remove(fileName);
+        }
+        for (String fileName : filesToRemove) {
+            filesTrackedNotInCWD.remove(fileName);
+        }
+        for (String fileName : filesStagedButNotInCWD) {
+            modifications.add(fileName + " (deleted)");
+        }
+        for (String fileName : filesTrackedNotInCWD) {
+            modifications.add(fileName + " (deleted)");
+        }
+        modifications.sort(String.CASE_INSENSITIVE_ORDER);
+        untracked.sort(String.CASE_INSENSITIVE_ORDER);
+        System.out.println("=== Modifications Not Staged For Commit ===");
+        for (String fileName : modifications) {
+            System.out.println(fileName);
+        }
+        System.out.println();
+        System.out.println("=== Untracked Files ===");
+        for (String file : untracked) {
+            System.out.println(file);
+        }
+        System.out.println();
     }
 
     /* RELATED TO POINTERS AND BRANCHES */
@@ -435,6 +484,9 @@ public class Repository {
         Pointers ptr = getPointers();
         ptr.branches.put(name, ptr.HEAD);
     }
+
+    /* RELATED TO STAGE */
+
 
 
     /* UTILITIES FOR MAIN */
