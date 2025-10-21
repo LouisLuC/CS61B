@@ -13,13 +13,17 @@ import static gitlet.Utils.*;
 // TODO: any imports you need here
 
 /**
- * Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
- *        does at a high level.
+ * Represents a gitlet repository, containing current states of Repo:
+ * - HEAD: the nearest commit on current branch
+ * - currentBranch: the current branch the repo on
+ * - branches: record mapping of branch name to its newest commit id of all the branch in repo
+ * - Addition: record file name of files in current Staging Area for addition
+ * - Removal: record file names of files in current Staging Area for removal
+ * - CommitTree: record All commits and their links
  *
  * @author Louis Lu
  */
-public class Repository {
+public class RepositoryRefactor implements Serializable {
     /**
      * TODO: add instance variables here.
      * <p>
@@ -29,26 +33,12 @@ public class Repository {
      */
 
 
-    private static class Pointers implements Serializable {
-        String HEAD;
-        String currentBranch;
-        Map<String, String> branches;
+    private String HEAD;
+    private String currentBranch;
+    private Map<String, String> branches;
+    private Set<String> removal;
 
-        Pointers(String HEAD) {
-            this.HEAD = HEAD;
-            branches = new HashMap<>();
-            branches.put("master", this.HEAD);
-            currentBranch = "master";
-        }
-    }
-
-    private static class Removal implements Serializable {
-        Set<String> filesToRemove;
-
-        Removal() {
-            this.filesToRemove = new HashSet<>();
-        }
-    }
+    // private CommitTree cmtTree;
 
     /**
      * Represents the saved contents of files.
@@ -65,6 +55,24 @@ public class Repository {
         }
     }
 
+    private static class CommitTree {
+        static class Node {
+            String commitId;
+            String parentId;
+            String mergedParentId;
+
+            Node(String commitId, String parentId, String mergedParentId) {
+                this.mergedParentId = mergedParentId;
+                this.commitId = mergedParentId;
+                this.parentId = mergedParentId;
+            }
+        }
+        Node init;
+        CommitTree(Node init) {
+            this.init = init;
+        }
+    }
+
     // public static final String DELIMITER = "/";
 
     /**
@@ -74,38 +82,53 @@ public class Repository {
 
     /**
      * The .gitlet and associated directory.
+     * The Structure of .gitlet directory is like:
+     * .gitlet
+     * ├── Blobs
+     * │         ├── 9d4cc50909a76fddee78aa3e1109984797c0a6fe
+     * │         ├── e8d38523fee7e92cf365d4a7ca1a62cc326f191d
+     * │         └── ...
+     * ├── Commits
+     * │         ├── 90d14aef18a17e13b4e2222df26332d25092be3f
+     * │         ├── dfc960a42c1426126ed638d45186e88e1ea4624d
+     * │         └── ...
+     * ├── StagingArea
+     * │    ├── FileName1
+     * │    └── FileName2
+     * └── States
      */
-    public static final String GITLET_DIR = String.join(DELIMITER, CWD, ".gitlet");
+     private static final String GITLET_DIR_NAME = ".gitlet";
+     private static final String STAGE_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "StagingArea");
+     private static final String BLOBS_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "Blobs");
+     private static final String COMMITS_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "Commits");
+     private static final String STATES_FILE_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "State");
 
-    /**
-     * Directory contains files associated to staging for addition and removal
-     */
-    public static final String STAGE_DIR = String.join(DELIMITER, GITLET_DIR, "StagingArea");
 
-    public static final String ADDITION_DIR = String.join(DELIMITER, STAGE_DIR, "addition");
-
-    public static final String REMOVAL_FILE = String.join(DELIMITER, STAGE_DIR, "Removal");
+    // public static final String ADDITION_DIR = String.join(DELIMITER, STAGE_DIR, "addition");
+    // public static final String REMOVAL_FILE = String.join(DELIMITER, STAGE_DIR, "Removal");
 
     /**
      * Directory contains things about repository, like Blobs, Commits
      */
-    public static final String REPO_DIR = String.join(DELIMITER, GITLET_DIR, "Repository");
 
     /**
      * Directory contains Blob files
      */
-    public static final String BLOBS_DIR = String.join(DELIMITER, REPO_DIR, "Blobs");
-
     /**
      * Directory contains Commits
      */
-    public static final String COMMITS_DIR = String.join(DELIMITER, REPO_DIR, "Commits");
+    // public static final String POINTER_FILE = String.join(DELIMITER, REPO_DIR, "Pointers");
 
-    public static final String POINTER_FILE = String.join(DELIMITER, REPO_DIR, "Pointers");
+    private static Path getAbsolutePath(String relativePath) {
+        return Paths.get(CWD, relativePath);
+    }
 
 
     /* TODO: fill in the rest of this class. */
 
+    public RepositoryRefactor(Path CWD) {
+
+    }
 
     /* Related to command `gitlet init` */
 
