@@ -221,6 +221,10 @@ class Utils {
         }
     }
 
+    static List<String> plainFilenamesIn(Path dir) {
+        return plainFilenamesIn(dir.toString());
+    }
+
     /**
      * Returns a list of the names of all plain files in the directory DIR, in
      * lexicographic order as Java Strings.  Returns null if DIR does
@@ -329,6 +333,6 @@ class Utils {
     static BiFunction<Integer, Integer, Boolean> equally = Integer::equals;
 
     static BiFunction<Integer, Integer, Boolean> largerAndEqual = (argsNum, num) -> {
-        return argsNum >= num;
+        return (Boolean) (argsNum >= num);
     };
 }
