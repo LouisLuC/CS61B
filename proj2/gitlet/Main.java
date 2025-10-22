@@ -26,45 +26,57 @@ public class Main {
                 throw new GitletException("Please enter a command.");
             }
             String firstArg = args[0];
+            Repository repo;
             switch (firstArg) {
                 case "init":
                     // Start a Gitlet repository in current work directory
                     validateNumArgs(args, 1, equally);
                     checkGitletInit(false);
-                    gitletInit();
+                    repo = new Repository();
+                    saveState(repo);
                     break;
                 case "add":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
+                    repo = loadState();
                     String fileName = args[1];
                     if (!checkFileExist(fileName)) {
                         throw new GitletException("File does not exist.");
                     }
                     // Does not consider "./fileName"
-                    add(Paths.get(CWD, fileName));
+                    repo.add(Paths.get(CWD, fileName));
+                    saveState(repo);
                     break;
                 case "commit":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
+                    repo = loadState();
                     String message = args[1];
                     if (message.isBlank()) {
                         throw new GitletException("Please enter a commit message.");
                     }
-                    commit(message);
+                    repo.commit(message);
+                    saveState(repo);
                     break;
                 case "rm":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
-                    remove(Paths.get(CWD, args[1]));
+                    repo = loadState();
+                    repo.remove(Paths.get(CWD, args[1]));
+                    saveState(repo);
                     break;
                 case "checkout":
                     checkGitletInit(true);
-                    handleCheckout(args);
+                    repo = loadState();
+                    handleCheckout(args, repo);
+                    saveState(repo);
                     break;
                 case "branch":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
-                    createBranch(args[1]);
+                    repo = loadState();
+                    repo.createBranch(args[1]);
+                    saveState(repo);
                     break;
                 case "merge":
                     checkGitletInit(true);
@@ -73,49 +85,54 @@ public class Main {
                 case "log":
                     checkGitletInit(true);
                     validateNumArgs(args, 1, equally);
-                    log();
+                    repo = loadState();
+                    repo.log();
                     break;
                 case "global-log":
                     checkGitletInit(true);
                     validateNumArgs(args, 1, equally);
-                    globalLog();
+                    repo = loadState();
+                    repo.globalLog();
                     break;
                 case "find":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
-                    find(args[1]);
+                    repo = loadState();
+                    repo.find(args[1]);
                     break;
                 case "status":
                     checkGitletInit(true);
                     validateNumArgs(args, 1, equally);
-                    status();
+                    repo = loadState();
+                    repo.status();
                     break;
                 case "rm-branch":
                     checkGitletInit(true);
                     validateNumArgs(args, 2, equally);
-                    removeBranch(args[1]);
+                    repo = loadState();
+                    repo.removeBranch(args[1]);
+                    saveState(repo);
                     break;
                 case "reset":
                     break;
                 default:
                     throw new GitletException("No command with that name exists.");
-                    // TODO: FILL THE REST IN
             }
         } catch (GitletException e) {
             exitsWithMessage(e.getMessage());
         }
     }
 
-    static void handleCheckout(String[] args) throws IOException {
+    static void handleCheckout(String[] args, Repository repo) throws IOException {
         switch (args.length) {
             case 2:
-                checkoutToBranch(args[1]);
+                repo.checkoutToBranch(args[1]);
                 break;
             case 3:
-                checkout(args[2]);
+                repo.checkout(args[2]);
                 break;
             case 4:
-                checkout(args[3], args[1]);
+                repo.checkout(args[3], args[1]);
                 break;
             default:
                 throw new GitletException("Incorrect operands");
