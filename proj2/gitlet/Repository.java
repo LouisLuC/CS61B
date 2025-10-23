@@ -41,9 +41,14 @@ public class Repository implements Serializable {
     private String HEAD;
     private String currentBranch;
     private Map<String, String> branches;
-    private Set<String> removal;
+    private StagingArea stagingArea;
 
-    // private CommitTree cmtTree;
+    private static class StagingArea {
+        Map<String> removal;
+        Map<String> additon;
+
+        static getStagingArea()
+    }
 
     /**
      * Represents the saved contents of files.
@@ -56,7 +61,7 @@ public class Repository implements Serializable {
         @Serial
         private static final long serialVersionUID = 24L;
 
-        Blob() {
+        private Blob() {
         }
 
         Blob(Path file) {
@@ -78,34 +83,7 @@ public class Repository implements Serializable {
             newBlog.id = sha1(newBlog.fileName, newBlog.contents);
             return newBlog;
         }
-
     }
-
-    private static class CommitTree {
-        static class Node {
-            String commitId;
-            String parentId;
-            String mergedParentId;
-
-            Node(String commitId, String parentId, String mergedParentId) {
-                this.mergedParentId = mergedParentId;
-                this.commitId = mergedParentId;
-                this.parentId = mergedParentId;
-            }
-        }
-
-        Node init;
-
-        CommitTree(Node init) {
-            this.init = init;
-        }
-    }
-
-    // public static final String DELIMITER = "/";
-
-    /**
-     * The current working directory.
-     */
 
     /**
      * The .gitlet and associated directory.
@@ -159,9 +137,9 @@ public class Repository implements Serializable {
 
         HEAD = initCmt.getId();
         currentBranch = "master";
-        branches = new HashMap<>();
+        branches = new TreeMap<>();
         branches.put("master", initCmt.getId());
-        removal = new HashSet<>();
+        // removal = new HashSet<>();
 
         saveCmt(initCmt);
     }
@@ -211,8 +189,7 @@ public class Repository implements Serializable {
 
     void saveToCWD(Blob blob) {
         Path path = Paths.get(CWD).resolve(blob.fileName);
-        if (!checkFileExist(path))
-            writeContents(path.toFile(), new String(blob.contents, StandardCharsets.UTF_8));
+        writeContents(path.toFile(), new String(blob.contents, StandardCharsets.UTF_8));
     }
 
     void saveToStage(Blob blob) {
@@ -448,6 +425,7 @@ public class Repository implements Serializable {
 
 
     void printUntrackFileAndModificationNotStaged() {
+        // TODO fix removal files in modified
         Commit HEAD = getHEADCmt();
 
         List<String> filesInCWD = plainFilenamesIn(CWD);
@@ -511,14 +489,11 @@ public class Repository implements Serializable {
         if (cmt == null) {
             throw new GitletException("No commit with that id exists.");
         }
-
         String fileId = cmt.getFileIDByFileName(fileName);
         if (fileId == null) {
             throw new GitletException("File does not exist in that commit.");
         }
-
         Blob fileInBlob = getBlobFromRepo(fileId);
-
         saveToCWD(fileInBlob);
         // Files.write(Paths.get(CWD, fileName), fileInBlob.contents);
     }
@@ -651,45 +626,6 @@ public class Repository implements Serializable {
             boolean isOtherDeleted = fileInOtherId == null;
             boolean isCurrDeleted = fileInCurrId == null;
 
-            /*
-            if (otherExists && currExists && !sameWithOther && sameWithCurr) {
-                // files that have been modified in the given branch since the split point,
-                // but not modified in the current branch since the split point should
-                // be changed to their versions in the given branch
-                // (checked out from the commit at the front of the given branch).
-                checkout(fileName, otherBranchCmt.getId());
-            } else if (otherExists && sameWithOther && !sameWithCurr && currExists) {
-                // files that have been modified in the current branch
-                // but not in the given branch since the split point should stay as they are.
-            } else if (Objects.equals(fileInOtherId, fileInCurrId)) {
-                // files that have been modified in both the current and given branch in the same way
-                // (i.e., both files now have the same content or were both removed) are left unchanged by the merge.
-                // If a file was removed from both the current and given branch,
-                // but a file of the same name is present in the working directory,
-                // it is left alone and continues to be absent (not tracked nor staged) in the merge.
-            } else if (sameWithCurr && !otherExists) {
-                // Any files present at the split point, unmodified in the current branch,
-                // and absent in the given branch should be removed (and untracked).
-                deleteFileInCWD(fileName);
-                removeFromStage(fileName);
-            } else if (sameWithOther && !currExists) {
-                // Any files present at the split point, unmodified in the given branch,
-                // and absent in the current branch should remain absent.
-                deleteFileInCWD(fileName); // try to delete the untracked new file with fileName
-            } else if ((currExists && otherExists && !fileInCurrId.equals(fileInOtherId)) ||
-                    (currExists && !sameWithCurr && !otherExists) || (otherExists && !sameWithOther && !currExists)) {
-                // Any files modified in different ways in the current and given branches are in conflict.
-                // “Modified in different ways” can mean that the contents of both are changed and different from other,
-                // or the contents of one are changed and the other file is deleted,
-                // or the file was absent at the split point and has different contents in the given and current branches.
-                Blob fileInCurr = getBlobFromRepo(fileInCurrId);
-                Blob fileInOther = getBlobFromRepo(fileInCurrId);
-                Blob mergedBlob = Blob.mergeConflict(fileName, fileInCurr, fileInOther);
-
-                saveToCWD(mergedBlob);
-                saveToStage(mergedBlob);
-            }
-            */
             Path fileInCWD = Paths.get(CWD, fileName);
             if (!isCurrModified) {
                 if (isOtherModified) {
@@ -700,7 +636,6 @@ public class Repository implements Serializable {
                         add(fileInCWD);
                     }
                 }
-
             } else {
                 if (!isOtherModified) {
                     if (isCurrDeleted) {
