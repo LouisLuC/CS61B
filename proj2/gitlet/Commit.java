@@ -1,7 +1,6 @@
 package gitlet;
 
-// TODO: any imports you need here
-
+import java.io.Serial;
 import java.io.Serializable;
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -28,6 +27,8 @@ public class Commit implements Serializable {
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
      */
+    @Serial
+    private static final long serialVersionUID = 100L;
 
     /* META DATA */
 
@@ -42,7 +43,7 @@ public class Commit implements Serializable {
     private Long timestamp;
 
     /**
-     * SHA-1 hash code for Commit Object, through `message`, `Timestamp` TODO
+     * SHA-1 hash code for Commit Object, through `message`, `Timestamp`
      */
     private String id;
 
@@ -62,10 +63,6 @@ public class Commit implements Serializable {
      * a mapping of file names to blob references, Key is file names, and Value is Blob id
      */
     private HashMap<String, String> fileMap;
-
-
-
-    /* TODO: fill in the rest of this class. */
 
     /* GETTER AND SETTER */
 
@@ -105,7 +102,9 @@ public class Commit implements Serializable {
         return this.timestamp;
     }
 
+    @Deprecated
     public void setParentId(String parentId) {
+        // TODO REMOVE THIS METHOD
         this.parentId = parentId;
     }
 

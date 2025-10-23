@@ -3,14 +3,13 @@ package gitlet;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Date;
 
 import static gitlet.Utils.*;
-
-// TODO: any imports you need here
 
 /**
  * Represents a gitlet repository, containing current states of Repo:
@@ -54,11 +53,32 @@ public class Repository implements Serializable {
         String fileName;
         byte[] contents;
 
-        public Blob(Path file) {
+        @Serial
+        private static final long serialVersionUID = 24L;
+
+        Blob() {
+        }
+
+        Blob(Path file) {
             this.fileName = file.getFileName().toString();
             this.contents = readContents(file);
-            this.id = Utils.sha1(fileName, contents);
+            this.id = sha1(fileName, contents);
         }
+
+        static Blob mergeConflict(String fileName, Blob inHEAD, Blob other) {
+            Blob newBlog = new Blob();
+            byte[] inHeadContent = inHEAD == null ? new byte[0] : inHEAD.contents;
+            byte[] otherContent = other == null ? new byte[0] : other.contents;
+            String strBuilder = "<<<<<<< HEAD\n" +
+                    new String(inHeadContent, StandardCharsets.UTF_8) +
+                    "=======\n" +
+                    new String(otherContent, StandardCharsets.UTF_8) +
+                    ">>>>>>>\n";
+            newBlog.contents = strBuilder.getBytes(StandardCharsets.UTF_8);
+            newBlog.id = sha1(newBlog.fileName, newBlog.contents);
+            return newBlog;
+        }
+
     }
 
     private static class CommitTree {
@@ -189,6 +209,18 @@ public class Repository implements Serializable {
         removeFromRemoval(fileInCWD.fileName);
     }
 
+    void saveToCWD(Blob blob) {
+        Path path = Paths.get(CWD).resolve(blob.fileName);
+        if (!checkFileExist(path))
+            writeContents(path.toFile(), new String(blob.contents, StandardCharsets.UTF_8));
+    }
+
+    void saveToStage(Blob blob) {
+        Path path = STAGING_AREA.resolve(blob.fileName);
+        if (!checkFileExist(path))
+            writeObject(path.toFile(), blob);
+    }
+
     /* RELATED TO GITLET COMMIT */
 
     /**
@@ -266,6 +298,7 @@ public class Repository implements Serializable {
 
     private Blob getBlobFromRepo(String ID) {
         Path blobPath = BLOBS_DIR.resolve(ID);
+        if (!checkFileExist(blobPath)) return null;
         return readObject(blobPath.toFile(), Blob.class);
     }
 
@@ -471,7 +504,6 @@ public class Repository implements Serializable {
     }
 
     void checkout(String fileName, String cmtId) throws IOException {
-        // TODO the ID may be abbreviated version, see spec
         if (cmtId.length() < 40) {
             cmtId = getFullCmtId(cmtId);
         }
@@ -487,7 +519,8 @@ public class Repository implements Serializable {
 
         Blob fileInBlob = getBlobFromRepo(fileId);
 
-        Files.write(Paths.get(CWD, fileName), fileInBlob.contents);
+        saveToCWD(fileInBlob);
+        // Files.write(Paths.get(CWD, fileName), fileInBlob.contents);
     }
 
     void checkoutToBranch(String branchName) throws IOException {
@@ -521,7 +554,8 @@ public class Repository implements Serializable {
         for (String fileName : coutCmt.getAllTrackedFiles()) {
             String fileId = coutCmt.getFileIDByFileName(fileName);
             Blob fileInRepo = getBlobFromRepo(fileId);
-            Files.write(Paths.get(CWD, fileName), fileInRepo.contents);
+            // Files.write(Paths.get(CWD, fileName), fileInRepo.contents);
+            saveToCWD(fileInRepo);
 
             // For (*)
             currTrackNotInCoutCmtFiles.remove(fileName);
@@ -597,7 +631,177 @@ public class Repository implements Serializable {
         branches.remove(name);
     }
 
+    boolean merge(String branchName) throws IOException {
+        String splitPoint = getSplitPointWithOtherBranch(branches.get(branchName));
+        if (splitPoint == null) return true;
+        Commit currBranchCmt = getCmt(HEAD);
+        Commit otherBranchCmt = getCmt(branches.get(branchName));
+        Commit splitPointCmt = getCmt(splitPoint);
+
+        Set<String> currBranchFiles = currBranchCmt.getAllTrackedFiles();
+        Set<String> otherBranchFiles = otherBranchCmt.getAllTrackedFiles();
+        Set<String> splitPointFiles = splitPointCmt.getAllTrackedFiles();
+        for (String fileName : splitPointFiles) {
+            String fileInSplitId = splitPointCmt.getFileIDByFileName(fileName);
+            String fileInCurrId = currBranchCmt.getFileIDByFileName(fileName);
+            String fileInOtherId = otherBranchCmt.getFileIDByFileName(fileName);
+
+            boolean isCurrModified = !fileInSplitId.equals(fileInCurrId);
+            boolean isOtherModified = !fileInSplitId.equals(fileInOtherId);
+            boolean isOtherDeleted = fileInOtherId == null;
+            boolean isCurrDeleted = fileInCurrId == null;
+
+            /*
+            if (otherExists && currExists && !sameWithOther && sameWithCurr) {
+                // files that have been modified in the given branch since the split point,
+                // but not modified in the current branch since the split point should
+                // be changed to their versions in the given branch
+                // (checked out from the commit at the front of the given branch).
+                checkout(fileName, otherBranchCmt.getId());
+            } else if (otherExists && sameWithOther && !sameWithCurr && currExists) {
+                // files that have been modified in the current branch
+                // but not in the given branch since the split point should stay as they are.
+            } else if (Objects.equals(fileInOtherId, fileInCurrId)) {
+                // files that have been modified in both the current and given branch in the same way
+                // (i.e., both files now have the same content or were both removed) are left unchanged by the merge.
+                // If a file was removed from both the current and given branch,
+                // but a file of the same name is present in the working directory,
+                // it is left alone and continues to be absent (not tracked nor staged) in the merge.
+            } else if (sameWithCurr && !otherExists) {
+                // Any files present at the split point, unmodified in the current branch,
+                // and absent in the given branch should be removed (and untracked).
+                deleteFileInCWD(fileName);
+                removeFromStage(fileName);
+            } else if (sameWithOther && !currExists) {
+                // Any files present at the split point, unmodified in the given branch,
+                // and absent in the current branch should remain absent.
+                deleteFileInCWD(fileName); // try to delete the untracked new file with fileName
+            } else if ((currExists && otherExists && !fileInCurrId.equals(fileInOtherId)) ||
+                    (currExists && !sameWithCurr && !otherExists) || (otherExists && !sameWithOther && !currExists)) {
+                // Any files modified in different ways in the current and given branches are in conflict.
+                // “Modified in different ways” can mean that the contents of both are changed and different from other,
+                // or the contents of one are changed and the other file is deleted,
+                // or the file was absent at the split point and has different contents in the given and current branches.
+                Blob fileInCurr = getBlobFromRepo(fileInCurrId);
+                Blob fileInOther = getBlobFromRepo(fileInCurrId);
+                Blob mergedBlob = Blob.mergeConflict(fileName, fileInCurr, fileInOther);
+
+                saveToCWD(mergedBlob);
+                saveToStage(mergedBlob);
+            }
+            */
+            Path fileInCWD = Paths.get(CWD, fileName);
+            if (!isCurrModified) {
+                if (isOtherModified) {
+                    if (isOtherDeleted) {
+                        remove(fileInCWD);
+                    } else {
+                        checkout(fileName, otherBranchCmt.getId());
+                        add(fileInCWD);
+                    }
+                }
+
+            } else {
+                if (!isOtherModified) {
+                    if (isCurrDeleted) {
+                        // do nothing
+                    }
+                } else {
+                    if (Objects.equals(fileInCurrId, fileInOtherId)) {
+                        // do nothing
+                    } else {
+                        mergeFileConflict(fileInCurrId, fileInOtherId);
+                    }
+                }
+            }
+            currBranchFiles.remove(fileName);
+            otherBranchFiles.remove(fileName);
+        }
+
+        /* Files which not exist in Split Point Commit */
+
+        for (String fileName : otherBranchFiles) {
+            String fileInOtherId = otherBranchCmt.getFileIDByFileName(fileName);
+            String fileInCurrId = currBranchCmt.getFileIDByFileName(fileName);
+            if (fileInCurrId == null) {
+                // TODO check checkout has staging action
+                checkout(fileName, otherBranchCmt.getId());
+            } else if (!fileInCurrId.equals(fileInOtherId)) {
+                mergeFileConflict(fileInCurrId, fileInOtherId);
+            }
+            currBranchFiles.remove(fileName);
+        }
+
+        /* Remain file in currBranchFiles is files which not exist in other branch, reserve.
+        for (String fileName : currBranchFiles) {
+        }
+        */
+
+        return true;
+    }
+
+    private void mergeFileConflict(String id1, String id2) {
+        // fileInCurrBlob as file In HEAD
+        Blob fileInCurrBlob = getBlobFromRepo(id1);
+        Blob fileInOtherBlob = getBlobFromRepo(id2);
+        String fileName = fileInCurrBlob == null ? fileInOtherBlob.fileName : fileInCurrBlob.fileName;
+        Blob mergedBlob = Blob.mergeConflict(fileName, fileInCurrBlob, fileInOtherBlob);
+        saveToCWD(mergedBlob);
+        // add(fileInCWD);
+        saveToStage(mergedBlob);
+    }
+
+    private String getSplitPointWithOtherBranch(String otherBranchName) throws IOException {
+        Commit currBranchCmt = getCmt(branches.get(currentBranch));
+        Commit otherBranchCmt = getCmt(branches.get(otherBranchName));
+        Set<String> trackCurr = new HashSet<>();
+        Set<String> trackOther = new HashSet<>();
+
+        String ret = null;
+        while (currBranchCmt != null || otherBranchCmt != null) {
+            String currId = currBranchCmt == null ? null : currBranchCmt.getId();
+            String otherId = otherBranchCmt == null ? null : otherBranchCmt.getId();
+
+            if (currId != null) trackCurr.add(currBranchCmt.getId());
+            if (otherId != null) trackOther.add(otherId);
+
+            if (trackCurr.contains(otherId)) {
+                if (otherId.equals(HEAD)) {
+                    // If the split point is the current branch,
+                    // then the effect is to check out the given branch
+                    checkoutToBranch(otherBranchName);
+                    System.out.println("Current branch fast-forwarded.");
+                    return null;
+                }
+                ret = otherId;
+                break;
+            }
+
+            if (trackOther.contains(currId)) {
+                if (currId.equals(branches.get(otherBranchName))) {
+                    // If the split point is the same commit as the given branch
+                    System.out.println("Given branch is an ancestor of the current branch.");
+                    return null;
+                }
+                ret = currId;
+                break;
+            }
+            currBranchCmt = currBranchCmt == null ? null : getCmt(currBranchCmt.getParentId());
+            otherBranchCmt = otherBranchCmt == null ? null : getCmt(otherBranchCmt.getParentId());
+        }
+        return ret;
+    }
+
     /* UTILITIES RELATED TO REPOSITORY */
+
+    static boolean deleteFileInCWD(String fileName) {
+        Path path = Paths.get(CWD, fileName);
+        if (checkFileExist(path)) {
+            restrictedDelete(path.toFile());
+            return true;
+        }
+        return false;
+    }
 
     static void checkGitletInit(boolean checkExistence) {
         boolean existence = checkDirExist(GITLET_DIR);
@@ -617,5 +821,4 @@ public class Repository implements Serializable {
         }
         return null;
     }
-
 }

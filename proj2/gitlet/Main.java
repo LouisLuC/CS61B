@@ -80,7 +80,10 @@ public class Main {
                     break;
                 case "merge":
                     checkGitletInit(true);
-                    // TODO
+                    validateNumArgs(args, 2, equally);
+                    repo = loadState();
+                    repo.merge(args[1]);
+                    saveState(repo);
                     break;
                 case "log":
                     checkGitletInit(true);
@@ -114,6 +117,11 @@ public class Main {
                     saveState(repo);
                     break;
                 case "reset":
+                    checkGitletInit(true);
+                    validateNumArgs(args, 2, equally);
+                    repo = loadState();
+                    repo.reset(args[1]);
+                    saveState(repo);
                     break;
                 default:
                     throw new GitletException("No command with that name exists.");
