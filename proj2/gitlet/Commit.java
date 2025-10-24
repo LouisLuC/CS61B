@@ -2,6 +2,7 @@ package gitlet;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Set;
@@ -22,7 +23,7 @@ public class Commit implements Serializable {
 
     /**
      * TODO: add instance variables here.
-     *
+     * <p>
      * List all instance variables of the Commit class here with a useful
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
@@ -66,11 +67,11 @@ public class Commit implements Serializable {
 
     /* GETTER AND SETTER */
 
-    public String getFileIDByFileName(String name) {
-        return fileMap.get(name);
+    public String get(String fileName) {
+        return fileMap.get(fileName);
     }
 
-    public String putInFileMap(String fileName, String BlobId) {
+    public String put(String fileName, String BlobId) {
         return fileMap.put(fileName, BlobId);
     }
 
@@ -78,7 +79,7 @@ public class Commit implements Serializable {
         return id;
     }
 
-    String removeFileMap(String fileName) {
+    String remove(String fileName) {
         return fileMap.remove(fileName);
     }
 
@@ -108,7 +109,7 @@ public class Commit implements Serializable {
         this.parentId = parentId;
     }
 
-    public Set<String> getAllTrackedFiles() {
+    public Set<String> getAll() {
         return this.fileMap.keySet();
     }
 
@@ -131,9 +132,11 @@ public class Commit implements Serializable {
         return newCommit;
     }
 
-    /** Create a Commit as the other Commit's child, where the child is identical to
-     *  its parent except its meta-data and parentIds. */
-    public static Commit createCommitAsChildOf(Commit parent, String message) {
+    /**
+     * Create a Commit as the other Commit's child, where the child is identical to
+     * its parent except its meta-data and parentIds.
+     */
+    static Commit createCommitAsChildOf(Commit parent, String message) {
         Commit newCommit = createCommit(message);
         newCommit.fileMap = parent.fileMap;
         newCommit.parentId = parent.id;
@@ -145,7 +148,7 @@ public class Commit implements Serializable {
      * A commit that contains no files and has the commit message "initial commit",
      * commited when a repository initiates.
      */
-    public static Commit initCommit() {
+    static Commit initCommit() {
         Commit initCommit = new Commit();
 
         initCommit.message = "initial commit";
@@ -159,6 +162,25 @@ public class Commit implements Serializable {
 
     private String createID() {
         return sha1(this.message, this.timestamp.toString());
+    }
+
+    /**
+     * Get commit object specified by `id`. If there is no such commit in file system, return null.
+     */
+    static Commit getCmt(String id) {
+        if (id == null || !checkFileExist(Repository.COMMITS_DIR.resolve(id)))
+            return null;
+        return readObject(Repository.COMMITS_DIR.resolve(id).toFile(), Commit.class);
+    }
+
+    /**
+     * Save commit to file system. If commit file already existed, do nothing.
+     */
+    void save() {
+        Path path = Repository.COMMITS_DIR.resolve(this.id);
+        if (!checkFileExist(path)) {
+            writeObject(path.toFile(), this);
+        }
     }
 }
 

@@ -1,9 +1,9 @@
 package gitlet;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -43,82 +43,61 @@ public class Repository implements Serializable {
     private Map<String, String> branches;
     private StagingArea stagingArea;
 
-    private static class StagingArea {
-        Map<String> removal;
-        Map<String> additon;
+    private static class StagingArea implements Serializable {
+        Set<String> removal;
+        Map<String, String> addition;
 
-        static getStagingArea()
-    }
-
-    /**
-     * Represents the saved contents of files.
-     */
-    private static class Blob implements Serializable {
-        String id;
-        String fileName;
-        byte[] contents;
-
-        @Serial
-        private static final long serialVersionUID = 24L;
-
-        private Blob() {
+        void stageForAddition(Blob blob) {
+            addition.put(blob.fileName, blob.id);
+            blob.save();
         }
 
-        Blob(Path file) {
-            this.fileName = file.getFileName().toString();
-            this.contents = readContents(file);
-            this.id = sha1(fileName, contents);
+        StagingArea() {
+            this.addition = new TreeMap<>();
+            this.removal = new TreeSet<>();
         }
 
-        static Blob mergeConflict(String fileName, Blob inHEAD, Blob other) {
-            Blob newBlog = new Blob();
-            byte[] inHeadContent = inHEAD == null ? new byte[0] : inHEAD.contents;
-            byte[] otherContent = other == null ? new byte[0] : other.contents;
-            String strBuilder = "<<<<<<< HEAD\n" +
-                    new String(inHeadContent, StandardCharsets.UTF_8) +
-                    "=======\n" +
-                    new String(otherContent, StandardCharsets.UTF_8) +
-                    ">>>>>>>\n";
-            newBlog.contents = strBuilder.getBytes(StandardCharsets.UTF_8);
-            newBlog.id = sha1(newBlog.fileName, newBlog.contents);
-            return newBlog;
+        void clear() {
+            addition.clear();
+            removal.clear();
+        }
+
+        boolean isEmpty() {
+            return addition.isEmpty() && removal.isEmpty();
         }
     }
+
 
     /**
      * The .gitlet and associated directory.
      * The Structure of .gitlet directory is like:
      * .gitlet
-     * ├── Blobs
+     * ├── Blobs  // Contains all the blobs that gitlet system tracked
      * │         ├── 9d4cc50909a76fddee78aa3e1109984797c0a6fe
      * │         ├── e8d38523fee7e92cf365d4a7ca1a62cc326f191d
      * │         └── ...
-     * ├── Commits
+     * ├── Commits // Contains all the commits
      * │         ├── 90d14aef18a17e13b4e2222df26332d25092be3f
      * │         ├── dfc960a42c1426126ed638d45186e88e1ea4624d
      * │         └── ...
-     * ├── StagingArea
-     * │    ├── FileName1
-     * │    └── FileName2
-     * └── States
+     * └── States // Store system states, including pointers(HEAD, currentBranch and so on)
+     * // and file mappings for staging area
      */
     public static final String CWD = System.getProperty("user.dir");
 
     /**
      * Directory associated to gitlet system.
      */
-    private static final String GITLET_DIR_NAME = ".gitlet";
-    private static final String STAGE_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "StagingArea");
-    private static final String BLOBS_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "Blobs");
-    private static final String COMMITS_DIR_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "Commits");
-    private static final String STATES_FILE_NAME = String.join(DELIMITER, GITLET_DIR_NAME, "State");
+    static final String GITLET_DIR_NAME = ".gitlet";
+    static final String BLOBS_DIR_NAME = String.join(File.separator, GITLET_DIR_NAME, "Blobs");
+    static final String COMMITS_DIR_NAME = String.join(File.separator, GITLET_DIR_NAME, "Commits");
+    static final String STATES_FILE_NAME = String.join(File.separator, GITLET_DIR_NAME, "State");
 
-    private static final Path GITLET_DIR = Paths.get(CWD, GITLET_DIR_NAME);
-    ;
-    private static final Path STAGING_AREA = Paths.get(CWD, STAGE_DIR_NAME);
-    private static final Path BLOBS_DIR = Paths.get(CWD, BLOBS_DIR_NAME);
-    private static final Path COMMITS_DIR = Paths.get(CWD, COMMITS_DIR_NAME);
-    private static final Path STATES_FILE = Paths.get(CWD, STATES_FILE_NAME);
+    private static final Path CWD_PATH = Paths.get(CWD);
+    static final Path GITLET_DIR = CWD_PATH.resolve(GITLET_DIR_NAME);
+    static final Path BLOBS_DIR = CWD_PATH.resolve(BLOBS_DIR_NAME);
+    static final Path COMMITS_DIR = CWD_PATH.resolve(COMMITS_DIR_NAME);
+    static final Path STATES_FILE = CWD_PATH.resolve(STATES_FILE_NAME);
 
     /**
      * Constructor initiate a gitlet system in CWD
@@ -126,7 +105,7 @@ public class Repository implements Serializable {
     public Repository() throws IOException {
         try {
             Files.createDirectories(GITLET_DIR);
-            Files.createDirectories(STAGING_AREA);
+            // Files.createDirectories(STAGING_AREA);
             Files.createDirectories(COMMITS_DIR);
             Files.createDirectories(BLOBS_DIR);
             Files.createFile(STATES_FILE);
@@ -139,23 +118,23 @@ public class Repository implements Serializable {
         currentBranch = "master";
         branches = new TreeMap<>();
         branches.put("master", initCmt.getId());
-        // removal = new HashSet<>();
+        stagingArea = new StagingArea();
 
-        saveCmt(initCmt);
+        initCmt.save();
     }
 
 
     /**
      * Save states of Repository
      */
-    public static void saveState(Repository repo) throws IOException {
+    public static void saveState(Repository repo) {
         writeObject(STATES_FILE.toFile(), repo);
     }
 
     /**
      * Save states of Repository
      */
-    public static Repository loadState() throws IOException {
+    public static Repository loadState() {
         return readObject(STATES_FILE.toFile(), Repository.class);
     }
 
@@ -169,33 +148,33 @@ public class Repository implements Serializable {
      * 2. is not identical to HEAD, copy the file content into a Blob object,
      * Serialize it into a file which carries the same name with the `file` in the Staging Area
      */
-    void add(Path file) throws IOException {
-        Commit headCommit = getHEADCmt();
-        String commitedFileID = headCommit.getFileIDByFileName(file.getFileName().toString());
+    void add(Path file) {
+        Commit headCommit = Commit.getCmt(HEAD);
+        String commitedFileID = headCommit.get(file.getFileName().toString());
         Blob fileInCWD = new Blob(file);
 
         // TODO test, TO BE DELETED later
         System.out.println("Id is: " + fileInCWD.id + "\nfileName is: " + fileInCWD.fileName);
 
         if (fileInCWD.id.equals(commitedFileID)) {
+            // If file is identical to version in HEAD commit, remove if from stage
+            stagingArea.addition.remove(fileInCWD.fileName);
+        } else {
+            stagingArea.addition.put(fileInCWD.fileName, fileInCWD.id);
+            fileInCWD.save();
+        }
+        /*
+        if (fileInCWD.id.equals(commitedFileID)) {
             if (checkFileExist(STAGING_AREA.resolve(fileInCWD.fileName)))
                 removeFromStage(fileInCWD.fileName);
         } else {
             writeObject(STAGING_AREA.resolve(fileInCWD.fileName).toFile(), fileInCWD);
         }
+        */
+
         // Try to delete it from removal
-        removeFromRemoval(fileInCWD.fileName);
-    }
-
-    void saveToCWD(Blob blob) {
-        Path path = Paths.get(CWD).resolve(blob.fileName);
-        writeContents(path.toFile(), new String(blob.contents, StandardCharsets.UTF_8));
-    }
-
-    void saveToStage(Blob blob) {
-        Path path = STAGING_AREA.resolve(blob.fileName);
-        if (!checkFileExist(path))
-            writeObject(path.toFile(), blob);
+        // removeFromRemoval(fileInCWD.fileName);
+        stagingArea.removal.remove(fileInCWD.fileName);
     }
 
     /* RELATED TO GITLET COMMIT */
@@ -205,26 +184,28 @@ public class Repository implements Serializable {
      * TODO
      */
     void commit(String message) throws IOException {
-        Commit cmt = Commit.createCommitAsChildOf(getHEADCmt(), message);
-        List<String> stagedFiles = plainFilenamesIn(STAGING_AREA);
+        Commit cmt = Commit.createCommitAsChildOf(Commit.getCmt(HEAD), message);
 
         // Check
-        if (stagedFiles.isEmpty() && removal.isEmpty()) {
+        if (stagingArea.isEmpty()) {
             // if there is no file to be tracked or removed, exist
             throw new GitletException("No changes added to the commit.");
         }
 
-        // Add Staged files and clear Staging Area
-        for (String fileName : stagedFiles) {
-            Blob stagedBlob = getBlobFromStage(fileName);
-            cmt.putInFileMap(fileName, stagedBlob.id);
-            saveBlobToRepo(stagedBlob);
-            removeFromStage(fileName);
+        // Add files in addition
+        // Set<String> stagedFiles = new HashSet<>(stagingArea.additon.keySet());
+        for (String fileName : stagingArea.addition.keySet()) {
+            Blob stagedBlob = Blob.getBlob(stagingArea.addition.get(fileName));
+            cmt.put(fileName, stagedBlob.id);
+            stagedBlob.save();
+            // saveBlobToRepo(stagedBlob);
+            // removeFromStage(fileName);
         }
-        // Remove untracked files
-        for (String fileName : removal) {
-            cmt.removeFileMap(fileName);
+        // Remove files in removal
+        for (String fileName : stagingArea.removal) {
+            cmt.remove(fileName);
         }
+        stagingArea.clear();
 
         // Move pointer of branch
         branches.put(currentBranch, cmt.getId());
@@ -235,45 +216,40 @@ public class Repository implements Serializable {
         printCmtInLog(cmt);
 
         // save change into files
-        clearRemoval();
-        saveCmt(cmt);
+        cmt.save();
     }
 
+    /*
     private void clearRemoval() {
         removal.clear();
     }
-
-    /**
-     * Save a commit into a file in repository
      */
+
+    /*
+     * Save a commit into a file in repository
     private void saveCmt(Commit cmt) throws IOException {
         Path commitPath = Files.createFile(COMMITS_DIR.resolve(cmt.getId()));
         writeObject(commitPath.toFile(), cmt);
     }
-
-    /**
-     * Return commit from repository according to id
      */
+
+    /*
+     * Return commit from repository according to id
     private Commit getCmt(String id) {
         if (id == null || !checkFileExist(COMMITS_DIR.resolve(id))) {
             return null;
         }
         return readObject(COMMITS_DIR.resolve(id).toFile(), Commit.class);
     }
-
-    /**
-     * Get the commit the HEAD pointer pointed to
      */
-    private Commit getHEADCmt() {
-        return getCmt(HEAD);
-    }
 
+    /*
     private Blob getBlobFromStage(String fileName) {
         Path blobPath = STAGING_AREA.resolve(fileName);
         return readObject(blobPath.toFile(), Blob.class);
     }
 
-    private Blob getBlobFromRepo(String ID) {
+    private Blob Blob.getBlob(String ID) {
         Path blobPath = BLOBS_DIR.resolve(ID);
         if (!checkFileExist(blobPath)) return null;
         return readObject(blobPath.toFile(), Blob.class);
@@ -286,6 +262,7 @@ public class Repository implements Serializable {
             // do nothing
             writeObject(blobPath.toFile(), blob);
     }
+    */
 
     /* RELATED TO GITLET REMOVE */
 
@@ -297,51 +274,57 @@ public class Repository implements Serializable {
      * if the file is not tracked and is not in Staging Area, exist with the message
      */
     void remove(Path file) throws IOException {
-        Path fileInStage = STAGING_AREA.resolve(file.getFileName().toString());
-        String blobId = getHEADCmt().getFileIDByFileName(file.getFileName().toString());
-        boolean isFileInStage = checkFileExist(fileInStage);
-        boolean isFileTracked = blobId != null;
-        if (!isFileTracked && !isFileInStage) {
+        // Path fileInStage = STAGING_AREA.resolve(file.getFileName().toString());
+        Blob stagedBlob = Blob.getBlob(stagingArea.addition.get(file.getFileName().toString()));
+        String cmtBlobId = Commit.getCmt(HEAD).get(file.getFileName().toString());
+        // boolean isFileInStage = checkFileExist(fileInStage);
+        // boolean isFileTracked = cmtBlobId != null;
+        if (cmtBlobId == null && stagedBlob == null) {
             throw new GitletException("No reason to remove the file.");
         }
-        if (isFileInStage) {
-            Files.delete(fileInStage);
+        if (stagedBlob != null) {
+            // Files.delete(fileInStage);
+            stagingArea.addition.remove(stagedBlob.id);
         }
-        if (isFileTracked) {
-            stageToRemoval(file.getFileName().toString());
+        if (cmtBlobId != null) {
+            // stageToRemoval(file.getFileName().toString());
+            stagingArea.removal.add(file.getFileName().toString());
         }
         restrictedDelete(file.toFile());
     }
 
-    /**
+    /*
      * Remove a file from Staging Area
      *
      * @param fileName file name of one of files in Staging Area
-     */
     private void removeFromStage(String fileName) throws IOException {
         Files.delete(STAGING_AREA.resolve(fileName));
     }
+    */
 
+    /*
     private void clearStage() throws IOException {
         for (String fileName : plainFilenamesIn(STAGING_AREA))
             removeFromStage(fileName);
     }
+    *
 
     private void stageToRemoval(String fileName) {
         removal.add(fileName);
     }
 
     private boolean removeFromRemoval(String fileName) {
-        return removal.remove(fileName);
+        return stagingArea.removal.remove(fileName) != null;
     }
+     */
 
     /* RELATED TO LOG */
 
     void log() {
-        Commit currCmt = getHEADCmt();
+        Commit currCmt = Commit.getCmt(HEAD);
         while (currCmt != null) {
             printCmtInLog(currCmt);
-            currCmt = getCmt(currCmt.getParentId());
+            currCmt = Commit.getCmt(currCmt.getParentId());
         }
     }
 
@@ -362,7 +345,7 @@ public class Repository implements Serializable {
     void globalLog() {
         List<String> cmtIDs = plainFilenamesIn(COMMITS_DIR);
         for (String id : cmtIDs) {
-            Commit cmt = getCmt(id);
+            Commit cmt = Commit.getCmt(id);
             printCmtInLog(cmt);
         }
     }
@@ -374,7 +357,7 @@ public class Repository implements Serializable {
     void find(String msg) {
         List<String> cmtIDs = plainFilenamesIn(COMMITS_DIR);
         for (String id : cmtIDs) {
-            Commit cmt = getCmt(id);
+            Commit cmt = Commit.getCmt(id);
             if (msg.equals(cmt.getMessage())) {
                 System.out.println(cmt.getId());
             }
@@ -407,7 +390,7 @@ public class Repository implements Serializable {
 
     void printStage() {
         System.out.println("=== Staged Files ===");
-        for (String fileName : plainFilenamesIn(STAGING_AREA)) {
+        for (String fileName : stagingArea.addition.keySet()) {
             System.out.println(fileName);
         }
         System.out.println();
@@ -415,9 +398,9 @@ public class Repository implements Serializable {
 
     void printRemoval() {
         System.out.println("=== Removed Files ===");
-        List<String> printable = new ArrayList<>(removal);
-        printable.sort(String.CASE_INSENSITIVE_ORDER);
-        for (String fileToRemove : removal) {
+        // List<String> printable = new ArrayList<>(removal);
+        // printable.sort(String.CASE_INSENSITIVE_ORDER);
+        for (String fileToRemove : stagingArea.removal) {
             System.out.println(fileToRemove);
         }
         System.out.println();
@@ -426,12 +409,12 @@ public class Repository implements Serializable {
 
     void printUntrackFileAndModificationNotStaged() {
         // TODO fix removal files in modified
-        Commit HEAD = getHEADCmt();
+        Commit cmt = Commit.getCmt(HEAD);
 
-        List<String> filesInCWD = plainFilenamesIn(CWD);
-        Set<String> filesTracked = HEAD.getAllTrackedFiles();
-        List<String> filesStaged = plainFilenamesIn(STAGING_AREA);
-        Set<String> filesToRemove = new HashSet<>(removal);
+        List<String> filesInCWD = plainFilenamesIn(CWD_PATH);
+        List<String> filesTracked = new ArrayList<>(cmt.getAll());
+        List<String> filesStaged = new ArrayList<>(stagingArea.addition.keySet());
+        List<String> filesToRemove = new ArrayList<>(stagingArea.removal);
 
         List<String> modifications = new ArrayList<>();
         List<String> untracked = new ArrayList<>(filesInCWD);
@@ -439,14 +422,15 @@ public class Repository implements Serializable {
         List<String> filesTrackedNotInCWD = new ArrayList<>(filesTracked);
 
         for (String fileName : filesInCWD) {
-            String CWDId = new Blob(Paths.get(CWD, fileName)).id;
-            String additionId = filesStaged.contains(fileName) ? getBlobFromStage(fileName).id : null;
-            String commitId = HEAD.getFileIDByFileName(fileName);
-            if ((additionId != null && !additionId.equals(CWDId)) ||
-                    (commitId != null && additionId == null && !commitId.equals(CWDId))) {
+            String CWDId = new Blob(CWD_PATH.resolve(fileName)).id;
+            // String addId = filesStaged.contains(fileName) ? getBlobFromStage(fileName).id : null;
+            String addId = stagingArea.addition.get(fileName);
+            String cmtId = cmt.get(fileName);
+            if ((addId != null && !addId.equals(CWDId)) ||
+                    (cmtId != null && addId == null && !cmtId.equals(CWDId))) {
                 modifications.add(fileName + " (modified)");
             }
-            if (additionId != null || commitId != null) {
+            if (addId != null || cmtId != null) {
                 untracked.remove(fileName);
             }
             filesStagedButNotInCWD.remove(fileName);
@@ -477,25 +461,40 @@ public class Repository implements Serializable {
 
     /* RELATED TO CHECKOUT COMMAND */
 
+    /**
+     * Checkout a file from HEAD commit into CWD
+     */
     void checkout(String fileName) throws IOException {
         checkout(fileName, HEAD);
     }
 
+    /**
+     * Checkout blob contents into a file
+     */
+    private void checkout(Blob blob) {
+        Path path = CWD_PATH.resolve(blob.fileName);
+        writeContents(path.toFile(), blob.contents);
+    }
+
+    /**
+     * Checkout a file from a specific commit into CWD
+     *
+     * @param cmtId specific commit's id
+     */
     void checkout(String fileName, String cmtId) throws IOException {
         if (cmtId.length() < 40) {
             cmtId = getFullCmtId(cmtId);
         }
-        Commit cmt = getCmt(cmtId);
+        Commit cmt = Commit.getCmt(cmtId);
         if (cmt == null) {
             throw new GitletException("No commit with that id exists.");
         }
-        String fileId = cmt.getFileIDByFileName(fileName);
+        String fileId = cmt.get(fileName);
         if (fileId == null) {
             throw new GitletException("File does not exist in that commit.");
         }
-        Blob fileInBlob = getBlobFromRepo(fileId);
-        saveToCWD(fileInBlob);
-        // Files.write(Paths.get(CWD, fileName), fileInBlob.contents);
+        Blob fileInBlob = Blob.getBlob(fileId);
+        checkout(fileInBlob);
     }
 
     void checkoutToBranch(String branchName) throws IOException {
@@ -515,22 +514,22 @@ public class Repository implements Serializable {
      * Checkout files to a specific commit
      * Note: this method focuses on checkout files in Staging Area and CWD, would not modify pointers
      *
-     * @param cmtId specified commit id
+     * @param cmtId specific commit id
      */
     private void checkoutFilesToCmt(String cmtId) throws IOException {
-        Commit coutCmt = getCmt(cmtId);
-        Commit currCmt = getHEADCmt();
+        Commit coutCmt = Commit.getCmt(cmtId);
+        Commit currCmt = Commit.getCmt(HEAD);
 
         // (*) Find any files that are tracked (which means files stored in commit or stated for addition)
         // in the current branch but are not present in the checked-out branch
-        List<String> currTrackNotInCoutCmtFiles = new ArrayList<>(currCmt.getAllTrackedFiles());
-        List<String> stagedNotInCoutCmtFiles = plainFilenamesIn(STAGING_AREA);
+        List<String> currTrackNotInCoutCmtFiles = new ArrayList<>(currCmt.getAll());
+        List<String> stagedNotInCoutCmtFiles = new ArrayList<>(stagingArea.addition.keySet());
 
-        for (String fileName : coutCmt.getAllTrackedFiles()) {
-            String fileId = coutCmt.getFileIDByFileName(fileName);
-            Blob fileInRepo = getBlobFromRepo(fileId);
+        for (String fileName : coutCmt.getAll()) {
+            String fileId = coutCmt.get(fileName);
+            Blob fileInRepo = Blob.getBlob(fileId);
             // Files.write(Paths.get(CWD, fileName), fileInRepo.contents);
-            saveToCWD(fileInRepo);
+            checkout(fileInRepo);
 
             // For (*)
             currTrackNotInCoutCmtFiles.remove(fileName);
@@ -539,13 +538,12 @@ public class Repository implements Serializable {
 
         // Delete any files in (*)
         for (String fileName : currTrackNotInCoutCmtFiles)
-            restrictedDelete(Paths.get(CWD, fileName).toFile());
+            restrictedDelete(CWD_PATH.resolve(fileName).toFile());
         for (String fileName : stagedNotInCoutCmtFiles)
-            restrictedDelete(Paths.get(CWD, fileName).toFile());
+            restrictedDelete(CWD_PATH.resolve(fileName).toFile());
 
         // Clear the staging area
-        clearStage();
-        clearRemoval();
+        stagingArea.clear();
     }
 
     void reset(String cmtId) throws IOException {
@@ -569,18 +567,19 @@ public class Repository implements Serializable {
      * throw exception with message and exit; perform this check before command reset.
      **/
     void checkUntrackedChange(String cmdId) {
-        Commit cmt = getCmt(cmdId);
-        Commit HEAD = getHEADCmt();
+        Commit cmt = Commit.getCmt(cmdId);
+        Commit headCmt = Commit.getCmt(HEAD);
+
 
         Set<String> filesInCWD = new HashSet<>(plainFilenamesIn(CWD));
-        Set<String> filesTracked = cmt.getAllTrackedFiles();
+        Set<String> filesTracked = cmt.getAll();
 
         for (String fileName : filesTracked) {
             if (filesInCWD.contains(fileName)) {
                 // Current CWD contains file tracked by commit specified by cmdId
-                String fileInCWDId = new Blob(Paths.get(CWD, fileName)).id;
-                String fileStagedId = checkFileExist(STAGING_AREA.resolve(fileName)) ? getBlobFromStage(fileName).id : null;
-                String fileInHEADId = HEAD.getFileIDByFileName(fileName);
+                String fileInCWDId = new Blob(CWD_PATH.resolve(fileName)).id;
+                String fileStagedId = stagingArea.addition.get(fileName);
+                String fileInHEADId = headCmt.get(fileName);
                 if (!fileInCWDId.equals(fileInHEADId) && !fileInCWDId.equals(fileStagedId)) {
                     // if this file is not identical to either file in HEAD commit and Staging Area
                     throw new GitletException("There is an untracked file in the way;" +
@@ -609,24 +608,24 @@ public class Repository implements Serializable {
     boolean merge(String branchName) throws IOException {
         String splitPoint = getSplitPointWithOtherBranch(branches.get(branchName));
         if (splitPoint == null) return true;
-        Commit currBranchCmt = getCmt(HEAD);
-        Commit otherBranchCmt = getCmt(branches.get(branchName));
-        Commit splitPointCmt = getCmt(splitPoint);
+        Commit currBranchCmt = Commit.getCmt(HEAD);
+        Commit otherBranchCmt = Commit.getCmt(branches.get(branchName));
+        Commit splitPointCmt = Commit.getCmt(splitPoint);
 
-        Set<String> currBranchFiles = currBranchCmt.getAllTrackedFiles();
-        Set<String> otherBranchFiles = otherBranchCmt.getAllTrackedFiles();
-        Set<String> splitPointFiles = splitPointCmt.getAllTrackedFiles();
+        Set<String> currBranchFiles = currBranchCmt.getAll();
+        Set<String> otherBranchFiles = otherBranchCmt.getAll();
+        Set<String> splitPointFiles = splitPointCmt.getAll();
         for (String fileName : splitPointFiles) {
-            String fileInSplitId = splitPointCmt.getFileIDByFileName(fileName);
-            String fileInCurrId = currBranchCmt.getFileIDByFileName(fileName);
-            String fileInOtherId = otherBranchCmt.getFileIDByFileName(fileName);
+            String fileInSplitId = splitPointCmt.get(fileName);
+            String fileInCurrId = currBranchCmt.get(fileName);
+            String fileInOtherId = otherBranchCmt.get(fileName);
 
             boolean isCurrModified = !fileInSplitId.equals(fileInCurrId);
             boolean isOtherModified = !fileInSplitId.equals(fileInOtherId);
             boolean isOtherDeleted = fileInOtherId == null;
             boolean isCurrDeleted = fileInCurrId == null;
 
-            Path fileInCWD = Paths.get(CWD, fileName);
+            Path fileInCWD = CWD_PATH.resolve(fileName);
             if (!isCurrModified) {
                 if (isOtherModified) {
                     if (isOtherDeleted) {
@@ -656,8 +655,8 @@ public class Repository implements Serializable {
         /* Files which not exist in Split Point Commit */
 
         for (String fileName : otherBranchFiles) {
-            String fileInOtherId = otherBranchCmt.getFileIDByFileName(fileName);
-            String fileInCurrId = currBranchCmt.getFileIDByFileName(fileName);
+            String fileInOtherId = otherBranchCmt.get(fileName);
+            String fileInCurrId = currBranchCmt.get(fileName);
             if (fileInCurrId == null) {
                 // TODO check checkout has staging action
                 checkout(fileName, otherBranchCmt.getId());
@@ -677,18 +676,21 @@ public class Repository implements Serializable {
 
     private void mergeFileConflict(String id1, String id2) {
         // fileInCurrBlob as file In HEAD
-        Blob fileInCurrBlob = getBlobFromRepo(id1);
-        Blob fileInOtherBlob = getBlobFromRepo(id2);
+        Blob fileInCurrBlob = Blob.getBlob(id1);
+        Blob fileInOtherBlob = Blob.getBlob(id2);
         String fileName = fileInCurrBlob == null ? fileInOtherBlob.fileName : fileInCurrBlob.fileName;
         Blob mergedBlob = Blob.mergeConflict(fileName, fileInCurrBlob, fileInOtherBlob);
-        saveToCWD(mergedBlob);
+        // saveToCWD(mergedBlob);
+        checkout(mergedBlob);
         // add(fileInCWD);
-        saveToStage(mergedBlob);
+        add(CWD_PATH.resolve(mergedBlob.fileName));
+        // saveToStage(mergedBlob);
     }
 
     private String getSplitPointWithOtherBranch(String otherBranchName) throws IOException {
-        Commit currBranchCmt = getCmt(branches.get(currentBranch));
-        Commit otherBranchCmt = getCmt(branches.get(otherBranchName));
+        Commit currBranchCmt = Commit.getCmt(branches.get(currentBranch));
+        Commit otherBranchCmt = Commit.getCmt(branches.get(otherBranchName));
+
         Set<String> trackCurr = new HashSet<>();
         Set<String> trackOther = new HashSet<>();
 
@@ -721,22 +723,13 @@ public class Repository implements Serializable {
                 ret = currId;
                 break;
             }
-            currBranchCmt = currBranchCmt == null ? null : getCmt(currBranchCmt.getParentId());
-            otherBranchCmt = otherBranchCmt == null ? null : getCmt(otherBranchCmt.getParentId());
+            currBranchCmt = currBranchCmt == null ? null : Commit.getCmt(currBranchCmt.getParentId());
+            otherBranchCmt = otherBranchCmt == null ? null : Commit.getCmt(otherBranchCmt.getParentId());
         }
         return ret;
     }
 
     /* UTILITIES RELATED TO REPOSITORY */
-
-    static boolean deleteFileInCWD(String fileName) {
-        Path path = Paths.get(CWD, fileName);
-        if (checkFileExist(path)) {
-            restrictedDelete(path.toFile());
-            return true;
-        }
-        return false;
-    }
 
     static void checkGitletInit(boolean checkExistence) {
         boolean existence = checkDirExist(GITLET_DIR);
